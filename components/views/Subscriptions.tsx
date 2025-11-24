@@ -7,7 +7,210 @@ import Button from '../ui/Button';
 import Modal from '../ui/Modal';
 import Dropdown from '../ui/Dropdown';
 import { formatCurrency, formatNumber } from '../../utils/formatters';
-import { DollarIcon, EditIcon, SaveIcon, PackageIcon, PuzzleIcon, PlusCircleIcon, SubscriptionIcon } from '../ui/Icons';
+import { DollarIcon, EditIcon, SaveIcon, PackageIcon, PuzzleIcon, PlusCircleIcon, SubscriptionIcon, CheckIcon, XIcon, EyeIcon, SparklesIcon } from '../ui/Icons';
+
+// Highlights Editor Component
+interface HighlightsEditorProps {
+    highlights: string[];
+    onChange: (highlights: string[]) => void;
+}
+
+const HighlightsEditor: React.FC<HighlightsEditorProps> = ({ highlights, onChange }) => {
+    const [newHighlight, setNewHighlight] = useState('');
+
+    const handleAddHighlight = () => {
+        if (newHighlight.trim()) {
+            onChange([...highlights, newHighlight.trim()]);
+            setNewHighlight('');
+        }
+    };
+
+    const handleRemoveHighlight = (index: number) => {
+        onChange(highlights.filter((_, i) => i !== index));
+    };
+
+    const handleKeyPress = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            handleAddHighlight();
+        }
+    };
+
+    return (
+        <div className="space-y-3">
+            <div className="flex gap-2">
+                <input
+                    type="text"
+                    value={newHighlight}
+                    onChange={(e) => setNewHighlight(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    placeholder="e.g., 24/7 priority support"
+                    className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-brand-primary focus:ring-brand-primary sm:text-sm"
+                />
+                <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={handleAddHighlight}
+                    disabled={!newHighlight.trim()}
+                >
+                    <PlusCircleIcon /> Add
+                </Button>
+            </div>
+
+            {highlights.length > 0 && (
+                <ul className="space-y-2">
+                    {highlights.map((highlight, index) => (
+                        <li
+                            key={index}
+                            className="flex items-center justify-between gap-2 p-2 bg-gray-50 rounded-md border border-gray-200"
+                        >
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                                <CheckIcon className="text-green-600 flex-shrink-0" size={16} />
+                                <span className="text-sm text-gray-700 truncate">{highlight}</span>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => handleRemoveHighlight(index)}
+                                className="flex-shrink-0 p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                title="Remove highlight"
+                            >
+                                <XIcon size={16} />
+                            </button>
+                        </li>
+                    ))}
+                </ul>
+            )}
+
+            {highlights.length === 0 && (
+                <p className="text-sm text-gray-500 italic text-center py-4">
+                    No highlights added yet. Add marketing bullet points to showcase this plan's features.
+                </p>
+            )}
+        </div>
+    );
+};
+
+// Client-Facing Preview Component
+interface ClientFacingPreviewProps {
+    item: SubscriptionPlan | CreditPack;
+    type: 'plan' | 'pack';
+}
+
+const ClientFacingPreview: React.FC<ClientFacingPreviewProps> = ({ item, type }) => {
+    const isPlan = type === 'plan';
+    const plan = isPlan ? (item as SubscriptionPlan) : null;
+    const pack = !isPlan ? (item as CreditPack) : null;
+
+    // Calculate pricing display
+    const monthlyPrice = plan?.monthlyPrice || 0;
+    const annualPrice = plan?.annualPrice || 0;
+    const packPrice = pack?.price || 0;
+    const effectiveAnnualMonthly = annualPrice > 0 ? annualPrice / 12 : 0;
+    const savings = monthlyPrice * 12 - annualPrice;
+    const savingsPercent = monthlyPrice > 0 && annualPrice > 0 ? Math.round((savings / (monthlyPrice * 12)) * 100) : 0;
+
+    return (
+        <div className="max-w-sm mx-auto">
+            {/* Preview Card - Similar to the reference image */}
+            <div className={`relative rounded-lg border-2 p-6 bg-white shadow-lg ${item.isMostPopular ? 'border-green-500' : 'border-gray-200'}`}>
+                {/* Most Popular Badge */}
+                {item.isMostPopular && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-green-500 text-white shadow-md">
+                            <SparklesIcon size={12} /> Most Popular
+                        </span>
+                    </div>
+                )}
+
+                {/* Plan/Pack Name */}
+                <div className="text-center mb-4">
+                    <h3 className="text-xl font-bold text-gray-900">{item.name}</h3>
+                </div>
+
+                {/* Pricing */}
+                <div className="text-center mb-6">
+                    {isPlan ? (
+                        <>
+                            {/* Monthly and Annual Pricing Options */}
+                            <div className="space-y-4">
+                                {/* Monthly Option */}
+                                {monthlyPrice > 0 && (
+                                    <div className="p-3 border-2 border-gray-200 rounded-lg bg-gray-50">
+                                        <div className="text-xs font-semibold text-gray-600 uppercase mb-1">Monthly</div>
+                                        <div className="flex items-baseline justify-center gap-1">
+                                            <span className="text-3xl font-bold text-gray-900">
+                                                {formatCurrency(monthlyPrice)}
+                                            </span>
+                                            <span className="text-gray-600">/month</span>
+                                        </div>
+                                        <div className="text-xs text-gray-500 mt-1">Billed monthly</div>
+                                    </div>
+                                )}
+
+                                {/* Annual Option */}
+                                {annualPrice > 0 && (
+                                    <div className={`p-3 border-2 rounded-lg ${savingsPercent > 0 ? 'border-green-500 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
+                                        <div className="text-xs font-semibold text-gray-600 uppercase mb-1">Annual</div>
+                                        <div className="flex items-baseline justify-center gap-1">
+                                            <span className="text-3xl font-bold text-gray-900">
+                                                {formatCurrency(effectiveAnnualMonthly)}
+                                            </span>
+                                            <span className="text-gray-600">/month</span>
+                                        </div>
+                                        <div className="text-xs text-gray-500 mt-1">
+                                            {formatCurrency(annualPrice)}/year, billed annually
+                                        </div>
+                                        {savingsPercent > 0 && (
+                                            <div className="mt-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-green-600 text-white">
+                                                Save {savingsPercent}% ({formatCurrency(savings)})
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </>
+                    ) : (
+                        <div className="text-4xl font-bold text-gray-900">
+                            {formatCurrency(packPrice)}
+                        </div>
+                    )}
+                </div>
+
+                {/* Description */}
+                <p className="text-center text-sm text-gray-600 mb-6">
+                    {item.description}
+                </p>
+
+                {/* Highlights */}
+                {item.highlights && item.highlights.length > 0 && (
+                    <ul className="space-y-3 mb-6">
+                        {item.highlights.map((highlight, index) => (
+                            <li key={index} className="flex items-start gap-2">
+                                <CheckIcon className="text-green-600 flex-shrink-0 mt-0.5" size={16} />
+                                <span className="text-sm text-gray-700">{highlight}</span>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+
+                {/* CTA Button - Fixed styling with explicit brand-600 color */}
+                <button
+                    type="button"
+                    className="w-full py-3 px-4 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-lg transition-colors shadow-sm"
+                >
+                    {isPlan ? 'Choose Plan' : 'Purchase Pack'}
+                </button>
+            </div>
+
+            {/* Preview Note */}
+            <p className="mt-4 text-xs text-center text-gray-500 italic">
+                This is how clients will see this {type} in the pricing page
+                <br />
+                <span className="text-gray-400">(Button is for preview only - not functional in admin view)</span>
+            </p>
+        </div>
+    );
+};
 
 interface PlanFormProps {
     plan: SubscriptionPlan;
@@ -17,12 +220,17 @@ interface PlanFormProps {
 
 const PlanForm: React.FC<PlanFormProps> = ({ plan, onSave, onCancel }) => {
     const [formData, setFormData] = useState(plan);
+    const [activeTab, setActiveTab] = useState<'details' | 'highlights' | 'preview'>('details');
 
     const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
         const numValue = Number(value);
         setFormData(prev => ({ ...prev, [name]: ['monthlyPrice', 'annualPrice', 'baselineCredits', 'overageCreditRate', 'creditExpirationDays'].includes(name) ? numValue : value }));
     }
+
+    const handleHighlightsChange = (highlights: string[]) => {
+        setFormData(prev => ({ ...prev, highlights }));
+    };
 
     // Calculate savings for display
     const calculateSavings = () => {
@@ -41,6 +249,57 @@ const PlanForm: React.FC<PlanFormProps> = ({ plan, onSave, onCancel }) => {
 
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Tab Navigation */}
+            <div className="border-b border-gray-200">
+                <nav className="-mb-px flex space-x-8">
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab('details')}
+                        className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                            activeTab === 'details'
+                                ? 'border-brand-primary text-brand-primary'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        }`}
+                    >
+                        Plan Details
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab('highlights')}
+                        className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                            activeTab === 'highlights'
+                                ? 'border-brand-primary text-brand-primary'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        }`}
+                    >
+                        <span className="flex items-center gap-1">
+                            Highlights
+                            {formData.highlights && formData.highlights.length > 0 && (
+                                <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-semibold text-white bg-brand-primary rounded-full">
+                                    {formData.highlights.length}
+                                </span>
+                            )}
+                        </span>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab('preview')}
+                        className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                            activeTab === 'preview'
+                                ? 'border-brand-primary text-brand-primary'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        }`}
+                    >
+                        <span className="flex items-center gap-1">
+                            <EyeIcon size={16} /> Preview
+                        </span>
+                    </button>
+                </nav>
+            </div>
+
+            {/* Tab Content */}
+            {activeTab === 'details' && (
+                <div className="space-y-4">
             <div>
                 <label htmlFor="name" className="block text-sm font-medium text-gray-700">Plan Name</label>
                 <input type="text" name="name" id="name" value={formData.name} onChange={handleChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-primary focus:ring-brand-primary sm:text-sm" />
@@ -148,8 +407,36 @@ const PlanForm: React.FC<PlanFormProps> = ({ plan, onSave, onCancel }) => {
                     Mark as "Most Popular"
                 </label>
             </div>
+                </div>
+            )}
 
-            <div className="flex justify-end space-x-3 pt-4">
+            {/* Highlights Tab */}
+            {activeTab === 'highlights' && (
+                <div className="space-y-4">
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <h4 className="text-sm font-semibold text-gray-900 mb-2">Marketing Highlights</h4>
+                        <p className="text-sm text-gray-600">
+                            Add bullet points that will be displayed to clients on the pricing page.
+                            These help showcase the key features and benefits of this plan.
+                        </p>
+                    </div>
+
+                    <HighlightsEditor
+                        highlights={formData.highlights || []}
+                        onChange={handleHighlightsChange}
+                    />
+                </div>
+            )}
+
+            {/* Preview Tab */}
+            {activeTab === 'preview' && (
+                <div className="py-4">
+                    <ClientFacingPreview item={formData} type="plan" />
+                </div>
+            )}
+
+            {/* Form Actions - Always visible */}
+            <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
                 <Button type="button" variant="secondary" onClick={onCancel}>Cancel</Button>
                 <Button type="submit"><SaveIcon /> Save Changes</Button>
             </div>
@@ -165,12 +452,17 @@ interface CreditPackFormProps {
 
 const CreditPackForm: React.FC<CreditPackFormProps> = ({ pack, onSave, onCancel }) => {
     const [formData, setFormData] = useState(pack);
+    const [activeTab, setActiveTab] = useState<'details' | 'highlights' | 'preview'>('details');
 
     const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
         const numValue = Number(value);
         setFormData(prev => ({ ...prev, [name]: ['credits', 'price', 'creditExpirationDays'].includes(name) ? numValue : value }));
     }
+
+    const handleHighlightsChange = (highlights: string[]) => {
+        setFormData(prev => ({ ...prev, highlights }));
+    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -179,6 +471,57 @@ const CreditPackForm: React.FC<CreditPackFormProps> = ({ pack, onSave, onCancel 
 
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Tab Navigation */}
+            <div className="border-b border-gray-200">
+                <nav className="-mb-px flex space-x-8">
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab('details')}
+                        className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                            activeTab === 'details'
+                                ? 'border-brand-primary text-brand-primary'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        }`}
+                    >
+                        Pack Details
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab('highlights')}
+                        className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                            activeTab === 'highlights'
+                                ? 'border-brand-primary text-brand-primary'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        }`}
+                    >
+                        <span className="flex items-center gap-1">
+                            Highlights
+                            {formData.highlights && formData.highlights.length > 0 && (
+                                <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-semibold text-white bg-brand-primary rounded-full">
+                                    {formData.highlights.length}
+                                </span>
+                            )}
+                        </span>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab('preview')}
+                        className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                            activeTab === 'preview'
+                                ? 'border-brand-primary text-brand-primary'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        }`}
+                    >
+                        <span className="flex items-center gap-1">
+                            <EyeIcon size={16} /> Preview
+                        </span>
+                    </button>
+                </nav>
+            </div>
+
+            {/* Tab Content */}
+            {activeTab === 'details' && (
+                <div className="space-y-4">
             <div>
                 <label htmlFor="pack-name" className="block text-sm font-medium text-gray-700">Pack Name</label>
                 <input type="text" name="name" id="pack-name" value={formData.name} onChange={handleChange} required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-primary focus:ring-brand-primary sm:text-sm" />
@@ -246,8 +589,36 @@ const CreditPackForm: React.FC<CreditPackFormProps> = ({ pack, onSave, onCancel 
                     Mark as "Most Popular"
                 </label>
             </div>
+                </div>
+            )}
 
-            <div className="flex justify-end space-x-3 pt-4">
+            {/* Highlights Tab */}
+            {activeTab === 'highlights' && (
+                <div className="space-y-4">
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <h4 className="text-sm font-semibold text-gray-900 mb-2">Marketing Highlights</h4>
+                        <p className="text-sm text-gray-600">
+                            Add bullet points that will be displayed to clients on the pricing page.
+                            These help showcase the key features and benefits of this credit pack.
+                        </p>
+                    </div>
+
+                    <HighlightsEditor
+                        highlights={formData.highlights || []}
+                        onChange={handleHighlightsChange}
+                    />
+                </div>
+            )}
+
+            {/* Preview Tab */}
+            {activeTab === 'preview' && (
+                <div className="py-4">
+                    <ClientFacingPreview item={formData} type="pack" />
+                </div>
+            )}
+
+            {/* Form Actions - Always visible */}
+            <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
                 <Button type="button" variant="secondary" onClick={onCancel}>Cancel</Button>
                 <Button type="submit"><SaveIcon /> Save Changes</Button>
             </div>

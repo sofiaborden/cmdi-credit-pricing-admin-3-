@@ -24,6 +24,7 @@ export interface SubscriptionPlan {
   isMostPopular?: boolean;
   clientsUsing: number;
   lastUpdated?: string; // ISO date string
+  highlights?: string[]; // Marketing bullet points for client-facing pricing pages
 }
 
 export interface AddOn {
@@ -46,6 +47,7 @@ export interface CreditPack {
     purchasedCount: number; // Number of times this pack has been purchased
     isMostPopular?: boolean;
     lastUpdated?: string; // ISO date string
+    highlights?: string[]; // Marketing bullet points for client-facing pricing pages
 }
 
 export interface Integration {

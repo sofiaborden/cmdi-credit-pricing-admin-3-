@@ -30,6 +30,10 @@ import {
   Grid3x3,
   BarChart3,
   Info,
+  Check,
+  X,
+  Eye,
+  Sparkles,
 } from 'lucide-react';
 
 interface IconProps {
@@ -144,4 +148,16 @@ export const ListIcon = ({ className, size = 20 }: IconProps) => (
 );
 export const GridIcon = ({ className, size = 20 }: IconProps) => (
   <Grid3x3 className={className} size={typeof size === 'number' ? size : getSizeValue(size)} />
+);
+export const CheckIcon = ({ className, size = 16 }: IconProps) => (
+  <Check className={className} size={typeof size === 'number' ? size : getSizeValue(size)} />
+);
+export const XIcon = ({ className, size = 16 }: IconProps) => (
+  <X className={className} size={typeof size === 'number' ? size : getSizeValue(size)} />
+);
+export const EyeIcon = ({ className, size = 16 }: IconProps) => (
+  <Eye className={className} size={typeof size === 'number' ? size : getSizeValue(size)} />
+);
+export const SparklesIcon = ({ className, size = 16 }: IconProps) => (
+  <Sparkles className={className} size={typeof size === 'number' ? size : getSizeValue(size)} />
 );

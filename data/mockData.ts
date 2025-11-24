@@ -21,6 +21,13 @@ export const subscriptionPlans: SubscriptionPlan[] = [
     isMostPopular: false,
     clientsUsing: 245,
     lastUpdated: '2025-11-15T10:00:00Z',
+    highlights: [
+      '7,500 credits per month',
+      'Up to 5 users',
+      'Basic calling features',
+      'Email support',
+      '60-day credit rollover'
+    ],
   },
   {
     id: 'professional',
@@ -37,6 +44,14 @@ export const subscriptionPlans: SubscriptionPlan[] = [
     isMostPopular: true,
     clientsUsing: 612,
     lastUpdated: '2025-11-20T14:30:00Z',
+    highlights: [
+      '20,000 credits per month',
+      'Up to 20 users',
+      'Advanced calling features',
+      'Priority email support',
+      '90-day credit rollover',
+      'Custom integrations'
+    ],
   },
   {
     id: 'enterprise',
@@ -53,6 +68,15 @@ export const subscriptionPlans: SubscriptionPlan[] = [
     isMostPopular: false,
     clientsUsing: 85,
     lastUpdated: '2025-11-18T09:15:00Z',
+    highlights: [
+      '100,000 credits per month',
+      'Unlimited users',
+      'All advanced features',
+      '24/7 priority support',
+      '120-day credit rollover',
+      'Dedicated account manager',
+      'Custom SLA agreements'
+    ],
   },
   {
     id: 'legacy-standard',
@@ -121,6 +145,12 @@ export const creditPacks: CreditPack[] = [
         purchasedCount: 312,
         isMostPopular: false,
         lastUpdated: '2025-11-10T10:00:00Z',
+        highlights: [
+            '2,500 credits',
+            'Never expires',
+            'Instant activation',
+            'Great for campaigns'
+        ],
     },
     {
         id: 'pack2',
@@ -132,6 +162,13 @@ export const creditPacks: CreditPack[] = [
         purchasedCount: 589,
         isMostPopular: true,
         lastUpdated: '2025-11-15T14:30:00Z',
+        highlights: [
+            '6,000 credits',
+            'Never expires',
+            'Instant activation',
+            'Best value per credit',
+            'Most popular choice'
+        ],
     },
     {
         id: 'pack3',
@@ -143,6 +180,13 @@ export const creditPacks: CreditPack[] = [
         purchasedCount: 214,
         isMostPopular: false,
         lastUpdated: '2025-11-12T09:00:00Z',
+        highlights: [
+            '13,000 credits',
+            'Never expires',
+            'Instant activation',
+            'Maximum savings',
+            'Perfect for large campaigns'
+        ],
     },
     {
         id: 'pack4',
