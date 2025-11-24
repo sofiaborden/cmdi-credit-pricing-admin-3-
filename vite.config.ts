@@ -12,6 +12,10 @@ export default defineConfig(({ mode }) => {
       preview: {
         port: 5000,
         host: '0.0.0.0',
+        allowedHosts: [
+          'cmdi-credit-pricing-admin-3.onrender.com',
+          '.onrender.com', // Allow all Render subdomains
+        ],
       },
       plugins: [react()],
       define: {
