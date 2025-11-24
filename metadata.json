@@ -1,0 +1,5 @@
+{
+  "name": "CMDI Credit Pricing Admin",
+  "description": "An administrative application to manage credit-based pricing, subscriptions, features, and client billing across all CMDI products.",
+  "requestFramePermissions": []
+}

@@ -1,0 +1,398 @@
+
+import React, { useState, ChangeEvent } from 'react';
+import { systemPricing as mockSystemPricing, subscriptionPlans as mockSubscriptionPlans, addOns, integrations, creditPacks as mockCreditPacks } from '../../data/mockData';
+import { SystemPricing, SubscriptionPlan, CreditPack } from '../../types';
+import Card from '../ui/Card';
+import Button from '../ui/Button';
+import Modal from '../ui/Modal';
+import { formatCurrency, formatNumber } from '../../utils/formatters';
+import { DollarIcon, EditIcon, SaveIcon, PackageIcon, PuzzleIcon, PlusCircleIcon } from '../ui/Icons';
+
+interface PlanFormProps {
+    plan: SubscriptionPlan;
+    onSave: (plan: SubscriptionPlan) => void;
+    onCancel: () => void;
+}
+
+const PlanForm: React.FC<PlanFormProps> = ({ plan, onSave, onCancel }) => {
+    const [formData, setFormData] = useState(plan);
+
+    const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+        const { name, value } = e.target;
+        const numValue = Number(value);
+        setFormData(prev => ({ ...prev, [name]: ['monthlyPrice', 'baselineCredits', 'overageCreditRate', 'creditExpirationDays'].includes(name) ? numValue : value }));
+    }
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        onSave(formData);
+    }
+
+    return (
+        <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+                <label htmlFor="name" className="block text-sm font-medium text-gray-700">Plan Name</label>
+                <input type="text" name="name" id="name" value={formData.name} onChange={handleChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-primary focus:ring-brand-primary sm:text-sm" />
+            </div>
+             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label htmlFor="monthlyPrice" className="block text-sm font-medium text-gray-700">Monthly Price (USD)</label>
+                    <input type="number" name="monthlyPrice" id="monthlyPrice" value={formData.monthlyPrice} onChange={handleChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-primary focus:ring-brand-primary sm:text-sm" />
+                </div>
+                 <div>
+                    <label htmlFor="baselineCredits" className="block text-sm font-medium text-gray-700">Baseline Credits</label>
+                    <input type="number" name="baselineCredits" id="baselineCredits" value={formData.baselineCredits} onChange={handleChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-primary focus:ring-brand-primary sm:text-sm" />
+                </div>
+                <div>
+                    <label htmlFor="overageCreditRate" className="block text-sm font-medium text-gray-700">Overage Rate ($)</label>
+                    <input type="number" step="0.001" name="overageCreditRate" id="overageCreditRate" value={formData.overageCreditRate} onChange={handleChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-primary focus:ring-brand-primary sm:text-sm" />
+                </div>
+            </div>
+            <div>
+                <label htmlFor="description" className="block text-sm font-medium text-gray-700">Description</label>
+                <textarea name="description" id="description" value={formData.description} onChange={handleChange} rows={3} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-primary focus:ring-brand-primary sm:text-sm" />
+            </div>
+            <div>
+                <label htmlFor="creditExpirationDays" className="block text-sm font-medium text-gray-700">Credit Expiration Period</label>
+                <select
+                    name="creditExpirationDays"
+                    id="creditExpirationDays"
+                    value={formData.creditExpirationDays || 0}
+                    onChange={handleChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-primary focus:ring-brand-primary sm:text-sm"
+                >
+                    <option value={0}>Never expires</option>
+                    <option value={30}>30 days</option>
+                    <option value={60}>60 days</option>
+                    <option value={90}>90 days</option>
+                    <option value={180}>180 days</option>
+                    <option value={365}>365 days</option>
+                </select>
+                <p className="mt-1 text-xs text-gray-500">Monthly baseline credits will expire this many days after being allocated to the client</p>
+            </div>
+            <div className="flex justify-end space-x-3 pt-4">
+                <Button type="button" variant="secondary" onClick={onCancel}>Cancel</Button>
+                <Button type="submit"><SaveIcon /> Save Changes</Button>
+            </div>
+        </form>
+    );
+}
+
+interface CreditPackFormProps {
+    pack: CreditPack;
+    onSave: (pack: CreditPack) => void;
+    onCancel: () => void;
+}
+
+const CreditPackForm: React.FC<CreditPackFormProps> = ({ pack, onSave, onCancel }) => {
+    const [formData, setFormData] = useState(pack);
+
+    const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+        const { name, value } = e.target;
+        const numValue = Number(value);
+        setFormData(prev => ({ ...prev, [name]: ['credits', 'price', 'creditExpirationDays'].includes(name) ? numValue : value }));
+    }
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        onSave(formData);
+    }
+
+    return (
+        <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+                <label htmlFor="pack-name" className="block text-sm font-medium text-gray-700">Pack Name</label>
+                <input type="text" name="name" id="pack-name" value={formData.name} onChange={handleChange} required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-primary focus:ring-brand-primary sm:text-sm" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label htmlFor="pack-credits" className="block text-sm font-medium text-gray-700">Credits</label>
+                    <input type="number" name="credits" id="pack-credits" value={formData.credits} onChange={handleChange} min="1" required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-primary focus:ring-brand-primary sm:text-sm" />
+                </div>
+                <div>
+                    <label htmlFor="pack-price" className="block text-sm font-medium text-gray-700">Price (USD)</label>
+                    <input type="number" step="0.01" name="price" id="pack-price" value={formData.price} onChange={handleChange} min="0" required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-primary focus:ring-brand-primary sm:text-sm" />
+                </div>
+            </div>
+            <div>
+                <label htmlFor="pack-description" className="block text-sm font-medium text-gray-700">Description</label>
+                <textarea name="description" id="pack-description" value={formData.description} onChange={handleChange} rows={3} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-primary focus:ring-brand-primary sm:text-sm" />
+            </div>
+            <div>
+                <label htmlFor="pack-creditExpirationDays" className="block text-sm font-medium text-gray-700">Credit Expiration Period</label>
+                <select
+                    name="creditExpirationDays"
+                    id="pack-creditExpirationDays"
+                    value={formData.creditExpirationDays || 0}
+                    onChange={handleChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-primary focus:ring-brand-primary sm:text-sm"
+                >
+                    <option value={0}>Never expires</option>
+                    <option value={30}>30 days</option>
+                    <option value={60}>60 days</option>
+                    <option value={90}>90 days</option>
+                    <option value={180}>180 days</option>
+                    <option value={365}>365 days</option>
+                </select>
+                <p className="mt-1 text-xs text-gray-500">Add-on credits will expire this many days after purchase</p>
+            </div>
+            <div className="flex justify-end space-x-3 pt-4">
+                <Button type="button" variant="secondary" onClick={onCancel}>Cancel</Button>
+                <Button type="submit"><SaveIcon /> Save Changes</Button>
+            </div>
+        </form>
+    );
+}
+
+const Subscriptions: React.FC = () => {
+    const [systemPricing, setSystemPricing] = useState<SystemPricing>(mockSystemPricing);
+    const [isEditingSystemPricing, setIsEditingSystemPricing] = useState(false);
+    const [editedSystemPricing, setEditedSystemPricing] = useState<SystemPricing>(mockSystemPricing);
+    
+    const [plans, setPlans] = useState<SubscriptionPlan[]>(mockSubscriptionPlans);
+    const [creditPacks, setCreditPacks] = useState<CreditPack[]>(mockCreditPacks);
+    const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
+    const [editingPlan, setEditingPlan] = useState<SubscriptionPlan | null>(null);
+    const [isPackModalOpen, setIsPackModalOpen] = useState(false);
+    const [editingPack, setEditingPack] = useState<CreditPack | null>(null);
+
+    const handleEditSystemPricing = () => {
+        setEditedSystemPricing(systemPricing);
+        setIsEditingSystemPricing(true);
+    };
+
+    const handleCancelSystemPricing = () => {
+        setIsEditingSystemPricing(false);
+    };
+
+    const handleSaveSystemPricing = (e: React.FormEvent) => {
+        e.preventDefault();
+        setSystemPricing(editedSystemPricing);
+        setIsEditingSystemPricing(false);
+    };
+
+    const handleSystemPricingChange = (e: ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setEditedSystemPricing(prev => ({...prev, [name]: Number(value)}));
+    }
+
+    const handleOpenPlanModal = (plan: SubscriptionPlan) => {
+        setEditingPlan({ ...plan });
+        setIsPlanModalOpen(true);
+    };
+    
+    const handleClosePlanModal = () => {
+        setIsPlanModalOpen(false);
+        setEditingPlan(null);
+    };
+
+    const handleSavePlan = (updatedPlan: SubscriptionPlan) => {
+        setPlans(plans.map(p => p.id === updatedPlan.id ? updatedPlan : p));
+        handleClosePlanModal();
+    };
+
+    const handleOpenPackModal = (pack: CreditPack) => {
+        setEditingPack({ ...pack });
+        setIsPackModalOpen(true);
+    };
+
+    const handleClosePackModal = () => {
+        setIsPackModalOpen(false);
+        setEditingPack(null);
+    };
+
+    const handleSavePack = (updatedPack: CreditPack) => {
+        setCreditPacks(creditPacks.map(p => p.id === updatedPack.id ? updatedPack : p));
+        handleClosePackModal();
+    };
+
+
+  return (
+    <div className="space-y-10">
+      
+      <Card
+        title="System Pricing Configuration"
+        icon={<DollarIcon />}
+        actions={!isEditingSystemPricing && <Button onClick={handleEditSystemPricing} size="sm"><EditIcon /> Edit</Button>}
+        padding={isEditingSystemPricing ? "p-6" : "p-0"}
+      >
+        {!isEditingSystemPricing ? (
+            <div className="p-6">
+                <div className="flex space-x-12">
+                    <div>
+                        <p className="text-sm text-gray-500">Default Credit Price</p>
+                        <p className="text-2xl font-bold text-gray-800">{formatCurrency(systemPricing.creditPurchasePrice)}</p>
+                        <p className="text-sm text-gray-500">per credit (for margin calc)</p>
+                    </div>
+                        <div>
+                        <p className="text-sm text-gray-500">Minimum Purchase</p>
+                        <p className="text-2xl font-bold text-gray-800">{formatNumber(systemPricing.minPurchase)}</p>
+                        <p className="text-sm text-gray-500">credits</p>
+                    </div>
+                </div>
+            </div>
+        ) : (
+            <form onSubmit={handleSaveSystemPricing}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label htmlFor="creditPurchasePrice" className="block text-sm font-medium text-gray-700">Default Credit Price (USD)</label>
+                        <input type="number" step="0.01" name="creditPurchasePrice" id="creditPurchasePrice" value={editedSystemPricing.creditPurchasePrice} onChange={handleSystemPricingChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-primary focus:ring-brand-primary sm:text-sm" />
+                    </div>
+                    <div>
+                        <label htmlFor="minPurchase" className="block text-sm font-medium text-gray-700">Minimum Purchase (Credits)</label>
+                        <input type="number" name="minPurchase" id="minPurchase" value={editedSystemPricing.minPurchase} onChange={handleSystemPricingChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-primary focus:ring-brand-primary sm:text-sm" />
+                    </div>
+                </div>
+                <div className="flex justify-end space-x-3 mt-6">
+                    <Button type="button" variant="secondary" onClick={handleCancelSystemPricing}>Cancel</Button>
+                    <Button type="submit"><SaveIcon /> Save Changes</Button>
+                </div>
+            </form>
+        )}
+      </Card>
+
+      <Card title="Subscription Plan Pricing" padding="p-0">
+          <ul className="divide-y divide-gray-200/80">
+              {plans.map((plan) => (
+                  <li key={plan.id} className="p-6">
+                      <div className="flex justify-between items-start">
+                          <div>
+                              <h4 className="text-lg font-bold text-gray-800 flex items-center">
+                                  {plan.name}
+                                  <span className="ml-3 text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">MONTHLY</span>
+                              </h4>
+                              <p className="text-gray-600 mt-1 max-w-2xl">{plan.description}</p>
+                              <div className="mt-3 flex items-center space-x-6 text-sm">
+                                  <div>
+                                      <span className="text-gray-500">Price: </span>
+                                      <span className="font-semibold text-gray-800">{formatCurrency(plan.monthlyPrice)}/month</span>
+                                  </div>
+                                  <div className="text-gray-300">|</div>
+                                  <div>
+                                      <span className="text-gray-500">Credits: </span>
+                                      <span className="font-semibold text-gray-800">{formatNumber(plan.baselineCredits)}</span>
+                                  </div>
+                                  <div className="text-gray-300">|</div>
+                                  <div>
+                                      <span className="text-gray-500">Overage Rate: </span>
+                                      <span className="font-semibold text-gray-800">{formatCurrency(plan.overageCreditRate)}/credit</span>
+                                  </div>
+                                  <div className="text-gray-300">|</div>
+                                  <div>
+                                      <span className="text-gray-500">Expiration: </span>
+                                      <span className="font-semibold text-gray-800">
+                                          {plan.creditExpirationDays && plan.creditExpirationDays > 0
+                                              ? `${plan.creditExpirationDays} days`
+                                              : 'Never expires'}
+                                      </span>
+                                  </div>
+                              </div>
+                          </div>
+                          <Button variant="secondary" size="sm" onClick={() => handleOpenPlanModal(plan)}>
+                              <EditIcon />
+                              Edit
+                          </Button>
+                      </div>
+                  </li>
+              ))}
+          </ul>
+      </Card>
+
+       <Card 
+        title="Add-On Credit Packs" 
+        icon={<PackageIcon />}
+        actions={<Button size="sm">Add New Pack</Button>}
+        padding="p-0"
+       >
+           <div className="p-6 border-b border-gray-200/80">
+             <p className="text-sm text-gray-600">Pre-paid credit packages clients can purchase for seasonal usage spikes.</p>
+           </div>
+           <ul className="divide-y divide-gray-200/80">
+              {creditPacks.map((pack) => (
+                  <li key={pack.id} className="p-6">
+                      <div className="flex justify-between items-start">
+                          <div>
+                              <h4 className="text-lg font-bold text-gray-800">{pack.name}</h4>
+                              <p className="text-gray-600 mt-1 max-w-2xl">{pack.description}</p>
+                              <div className="mt-3 flex items-center space-x-6 text-sm">
+                                  <div>
+                                      <span className="text-gray-500">Price: </span>
+                                      <span className="font-semibold text-gray-800">{formatCurrency(pack.price)}</span>
+                                  </div>
+                                  <div className="text-gray-300">|</div>
+                                  <div>
+                                      <span className="text-gray-500">Credits: </span>
+                                      <span className="font-semibold text-gray-800">{formatNumber(pack.credits)}</span>
+                                  </div>
+                                  <div className="text-gray-300">|</div>
+                                    <div>
+                                      <span className="text-gray-500">Effective Rate: </span>
+                                      <span className="font-semibold text-gray-800">{formatCurrency(pack.price / pack.credits)}/credit</span>
+                                  </div>
+                                  <div className="text-gray-300">|</div>
+                                  <div>
+                                      <span className="text-gray-500">Expiration: </span>
+                                      <span className="font-semibold text-gray-800">
+                                          {pack.creditExpirationDays && pack.creditExpirationDays > 0
+                                              ? `${pack.creditExpirationDays} days`
+                                              : 'Never expires'}
+                                      </span>
+                                  </div>
+                              </div>
+                          </div>
+                          <Button variant="secondary" size="sm" onClick={() => handleOpenPackModal(pack)}>
+                              <EditIcon />
+                              Edit
+                          </Button>
+                      </div>
+                  </li>
+              ))}
+          </ul>
+      </Card>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+        <Card title="Service Add-Ons" icon={<PlusCircleIcon />} padding="p-0">
+          <ul className="divide-y divide-gray-200/80">
+            {addOns.map((addOn) => (
+              <li key={addOn.id} className="px-6 py-4">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="font-semibold text-gray-800">{addOn.name}</p>
+                    <p className="text-sm text-gray-500">{addOn.pricing}</p>
+                  </div>
+                  <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                    addOn.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                  }`}>
+                    {addOn.status}
+                  </span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Card>
+
+        <Card title="Integrations" icon={<PuzzleIcon />} padding="p-0">
+          <ul className="divide-y divide-gray-200/80">
+            {integrations.map((integration) => (
+              <li key={integration.id} className="px-6 py-4 flex justify-between items-center">
+                <p className="font-semibold text-gray-800">{integration.name}</p>
+                <span className="text-sm text-green-600 font-medium">Active</span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      </div>
+      
+      <Modal isOpen={isPlanModalOpen} onClose={handleClosePlanModal} title={editingPlan ? `Edit ${editingPlan.name} Plan` : ''}>
+          {editingPlan && <PlanForm plan={editingPlan} onSave={handleSavePlan} onCancel={handleClosePlanModal} />}
+      </Modal>
+
+      <Modal isOpen={isPackModalOpen} onClose={handleClosePackModal} title={editingPack ? `Edit ${editingPack.name}` : ''}>
+          {editingPack && <CreditPackForm pack={editingPack} onSave={handleSavePack} onCancel={handleClosePackModal} />}
+      </Modal>
+
+    </div>
+  );
+};
+
+export default Subscriptions;
