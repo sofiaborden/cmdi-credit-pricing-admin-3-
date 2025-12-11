@@ -1,4 +1,4 @@
-export type View = 'dashboard' | 'subscriptions' | 'features' | 'clients' | 'client-detail' | 'reports';
+export type View = 'dashboard' | 'subscriptions' | 'features' | 'clients' | 'client-detail' | 'reports' | 'settings';
 
 export type ClientStatus = 'Active' | 'Trial' | 'Past Due' | 'Canceled';
 
@@ -12,19 +12,20 @@ export type PlanStatus = 'active' | 'archived' | 'legacy' | 'internal' | 'beta';
 export interface SubscriptionPlan {
   id: string;
   name: string;
-  monthlyPrice: number;
-  annualPrice: number; // Total annual price (typically 10-20% discount from 12 × monthlyPrice)
+  monthlyPrice: number; // Base subscription price (before record-based pricing)
+  pricePerRecordPerMonth?: number; // NEW: Price per Crimson People database record per month
   description: string;
-  baselineCredits: number; // Credits allocated per month (annual plans get this amount each month for 12 months)
+  monthlyCreditsIncluded: number; // NEW NAME (formerly baselineCredits): Credits included per month
   maxUsers?: 'Unlimited' | number;
-  overageCreditRate: number; // Cost per credit when baseline is exceeded
-  creditExpirationDays?: number; // Days until monthly baseline credits expire (0 or undefined = never expires)
+  overageCreditRate: number; // Cost per credit when monthly credits are exceeded
   status: PlanStatus;
   tierLevel: number; // 1, 2, 3, etc. for sorting
   isMostPopular?: boolean;
   clientsUsing: number;
   lastUpdated?: string; // ISO date string
   highlights?: string[]; // Marketing bullet points for client-facing pricing pages
+  assignedClientTypes?: string[]; // NEW: Client types assigned to this tier (e.g., ['Fed Senate', 'Fed PAC'])
+  assignedClientIds?: string[]; // NEW: Individual client IDs assigned to this tier
 }
 
 export interface AddOn {
@@ -72,10 +73,11 @@ export interface Feature {
 export interface CreditTransaction {
   id: string;
   date: string;
-  type: 'Monthly Allotment' | 'Feature Usage' | 'Overage Purchase' | 'Credit Adjustment' | 'Add-On Purchase' | 'Subscription Change';
+  type: 'Monthly Allotment' | 'Feature Usage' | 'Overage Purchase' | 'Credit Adjustment' | 'Add-On Purchase' | 'Subscription Change' | 'Free Credits';
   description: string;
   amount: number; // positive for additions, negative for deductions
   balance: number;
+  memo?: string; // NEW: Optional memo/reason for transaction (especially for free credits)
 }
 
 export interface Client {
@@ -93,6 +95,10 @@ export interface Client {
     rollover: number;
     addOn: number;
   };
+  currentCreditCount?: number; // NEW: Current credit usage from Crimson API (live count)
+  creditCountLastUpdated?: string; // NEW: ISO date string of last credit count sync
+  recordCount?: number; // NEW: Number of records in Crimson People database (for pricing calculation)
+  recordCountLastUpdated?: string; // NEW: ISO date string of last record count sync
   currentMonthUsage: ClientUsage;
   lastMonthUsage: ClientUsage;
   transactions: CreditTransaction[];
@@ -117,4 +123,12 @@ export interface ClientUsage {
 export interface FeatureUsage {
   featureId: string;
   units: number;
+}
+
+// NEW: Terms and Conditions settings
+export interface TermsAndConditions {
+  id: string;
+  content: string; // The T&C text content
+  lastUpdated: string; // ISO date string
+  lastUpdatedBy: string; // Admin name or ID
 }

@@ -19,23 +19,26 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
     const kpiData = useMemo(() => {
+        // FIXED: Calculate total MRR including base subscription + record-based fees
         const totalMRR = clients.reduce((acc, client) => {
             const plan = subscriptionPlans.find(p => p.name === client.subscriptionTier);
-            return acc + (plan?.monthlyPrice || 0);
+            const baseFee = plan?.monthlyPrice || 0;
+            const recordFee = (client.recordCount || 0) * (plan?.pricePerRecordPerMonth || 0);
+            return acc + baseFee + recordFee;
         }, 0);
 
         const totalCreditsUsed = clients.reduce((acc, client) => acc + client.currentMonthUsage.totalCreditsUsed, 0);
 
-        // Calculate total allocated credits across all clients (baseline only)
+        // Calculate total allocated credits across all clients (using monthlyCreditsIncluded)
         const totalCreditsAllocated = clients.reduce((acc, client) => {
             const plan = subscriptionPlans.find(p => p.name === client.subscriptionTier);
-            return acc + (plan?.baselineCredits || 0);
+            return acc + (plan?.monthlyCreditsIncluded || 0);
         }, 0);
 
         // Calculate remaining baseline credits (for current month usage tracking)
         const creditsRemaining = totalCreditsAllocated - totalCreditsUsed;
 
-        // CRITICAL FIX: Calculate TOTAL unused credits (liability) including rollover and add-on credits
+        // Calculate TOTAL unused credits (liability) including rollover and add-on credits
         const totalUnusedCredits = clients.reduce((acc, client) => {
             const totalAvailable = client.creditBalance.monthly +
                                   client.creditBalance.rollover +
@@ -48,7 +51,30 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         const totalRolloverCredits = clients.reduce((acc, client) => acc + client.creditBalance.rollover, 0);
         const totalAddOnCredits = clients.reduce((acc, client) => acc + client.creditBalance.addOn, 0);
 
-        // Calculate high liability clients (100k+ unused credits)
+        // Calculate average liability per client
+        const avgLiabilityPerClient = clients.length > 0 ? totalUnusedCredits / clients.length : 0;
+
+        // Calculate liability tiers
+        const liabilityTiers = {
+            low: clients.filter(c => {
+                const total = c.creditBalance.monthly + c.creditBalance.rollover + c.creditBalance.addOn;
+                return total < 25000;
+            }).length,
+            medium: clients.filter(c => {
+                const total = c.creditBalance.monthly + c.creditBalance.rollover + c.creditBalance.addOn;
+                return total >= 25000 && total < 50000;
+            }).length,
+            high: clients.filter(c => {
+                const total = c.creditBalance.monthly + c.creditBalance.rollover + c.creditBalance.addOn;
+                return total >= 50000 && total < 100000;
+            }).length,
+            critical: clients.filter(c => {
+                const total = c.creditBalance.monthly + c.creditBalance.rollover + c.creditBalance.addOn;
+                return total >= 100000;
+            }).length,
+        };
+
+        // Calculate high liability clients (100k+ unused credits) with percentage
         const highLiabilityClients = clients.filter(client => {
             const totalAvailable = client.creditBalance.monthly +
                                   client.creditBalance.rollover +
@@ -58,6 +84,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
             const aTotal = a.creditBalance.monthly + a.creditBalance.rollover + a.creditBalance.addOn;
             const bTotal = b.creditBalance.monthly + b.creditBalance.rollover + b.creditBalance.addOn;
             return bTotal - aTotal;
+        }).map(client => {
+            const totalCredits = client.creditBalance.monthly + client.creditBalance.rollover + client.creditBalance.addOn;
+            const percentageOfTotal = totalUnusedCredits > 0 ? (totalCredits / totalUnusedCredits) * 100 : 0;
+            return { ...client, totalCredits, percentageOfTotal };
         });
 
         const featureUsageMap = new Map<string, number>();
@@ -82,6 +112,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
             totalMonthlyCredits,
             totalRolloverCredits,
             totalAddOnCredits,
+            avgLiabilityPerClient,
+            liabilityTiers,
             highLiabilityClients,
             mostUsedFeature
         };
@@ -90,11 +122,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     const alerts = useMemo(() => {
         const upsellOpportunities = clients.filter(client => {
             const plan = subscriptionPlans.find(p => p.name === client.subscriptionTier);
-            return plan && client.currentMonthUsage.totalCreditsUsed > plan.baselineCredits * 1.2;
+            return plan && client.currentMonthUsage.totalCreditsUsed > (plan.monthlyCreditsIncluded || 0) * 1.2;
         });
         const lowUsage = clients.filter(client => {
             const plan = subscriptionPlans.find(p => p.name === client.subscriptionTier);
-            return plan && client.currentMonthUsage.totalCreditsUsed < plan.baselineCredits * 0.2;
+            return plan && client.currentMonthUsage.totalCreditsUsed < (plan.monthlyCreditsIncluded || 0) * 0.2;
         });
 
         return { upsellOpportunities, lowUsage };
@@ -120,14 +152,13 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                 title="Total Unused Credits"
                 value={formatNumber(kpiData.totalUnusedCredits)}
                 icon={<AlertTriangleIcon className="text-white" size="small" />}
-                subtext={`Liability across all clients`}
                 variant="warning"
             />
             <KpiCard
-                title="Monthly Credits Left"
-                value={formatNumber(kpiData.creditsRemaining)}
+                title="Avg Liability Per Client"
+                value={formatNumber(Math.round(kpiData.avgLiabilityPerClient))}
                 icon={<CreditsIcon className="text-white" size="small" />}
-                subtext={`${formatNumber(kpiData.totalCreditsUsed)} of ${formatNumber(kpiData.totalCreditsAllocated)} used`}
+                subtext={`${clients.length} total clients`}
                 variant="default"
             />
             <KpiCard
@@ -139,21 +170,21 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
             />
         </div>
 
-        {/* Credit Liability Breakdown */}
+        {/* Credit Liability Breakdown & Tiers */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <Card title="Credit Liability Breakdown" icon={<CreditsIcon />} padding="p-5">
                 <ul className="space-y-3">
                     <li className="flex justify-between items-center">
                         <span className="text-sm text-gray-600">Monthly Credits</span>
-                        <span className="font-bold text-gray-900">{formatNumber(kpiData.totalMonthlyCredits)}</span>
+                        <span className="font-bold text-blue-700">{formatNumber(kpiData.totalMonthlyCredits)}</span>
                     </li>
                     <li className="flex justify-between items-center">
                         <span className="text-sm text-gray-600">Rollover Credits</span>
-                        <span className="font-bold text-gray-900">{formatNumber(kpiData.totalRolloverCredits)}</span>
+                        <span className="font-bold text-purple-700">{formatNumber(kpiData.totalRolloverCredits)}</span>
                     </li>
                     <li className="flex justify-between items-center">
                         <span className="text-sm text-gray-600">Add-On Credits</span>
-                        <span className="font-bold text-red-600">{formatNumber(kpiData.totalAddOnCredits)}</span>
+                        <span className="font-bold text-green-700">{formatNumber(kpiData.totalAddOnCredits)}</span>
                     </li>
                     <li className="flex justify-between items-center pt-3 border-t border-gray-200">
                         <span className="text-sm text-gray-900 font-semibold">Total Liability</span>
@@ -162,25 +193,56 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                 </ul>
             </Card>
 
-            {/* High Liability Clients Alert */}
-            <Card title="High Liability Clients" icon={<AlertTriangleIcon />} padding="p-5" className="lg:col-span-2">
+            <Card title="Clients by Liability Tier" icon={<AlertTriangleIcon />} padding="p-5">
+                <ul className="space-y-3">
+                    <li className="flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                            <span className="text-sm text-gray-600">Low (0-25k)</span>
+                        </div>
+                        <span className="font-bold text-gray-900">{kpiData.liabilityTiers.low}</span>
+                    </li>
+                    <li className="flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                            <span className="text-sm text-gray-600">Medium (25k-50k)</span>
+                        </div>
+                        <span className="font-bold text-gray-900">{kpiData.liabilityTiers.medium}</span>
+                    </li>
+                    <li className="flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full bg-orange-500"></div>
+                            <span className="text-sm text-gray-600">High (50k-100k)</span>
+                        </div>
+                        <span className="font-bold text-gray-900">{kpiData.liabilityTiers.high}</span>
+                    </li>
+                    <li className="flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                            <span className="text-sm text-gray-600">Critical (100k+)</span>
+                        </div>
+                        <span className="font-bold text-red-600">{kpiData.liabilityTiers.critical}</span>
+                    </li>
+                </ul>
+            </Card>
+
+            {/* High Liability Clients Alert - Enhanced */}
+            <Card title="High Liability Clients" icon={<AlertTriangleIcon />} padding="p-5">
                 <div className="mb-3">
                     <p className="text-xs text-gray-600">Clients with 100k+ unused credits</p>
                 </div>
                 {kpiData.highLiabilityClients.length > 0 ? (
                     <ul className="space-y-2">
-                        {kpiData.highLiabilityClients.map(client => {
-                            const totalCredits = client.creditBalance.monthly +
-                                                client.creditBalance.rollover +
-                                                client.creditBalance.addOn;
-                            return (
-                                <li key={client.id} className="flex items-center gap-2.5 p-2.5 bg-white rounded-lg border border-red-200 hover:border-red-300 hover:bg-red-50 transition-colors">
-                                    <span className="text-xs font-medium text-gray-900 flex-1 min-w-0 truncate">{client.clientName}</span>
-                                    <span className="text-xs font-bold text-red-600">{formatNumber(totalCredits)} credits</span>
-                                    <Button size="sm" variant="primary" onClick={() => onNavigate('clients')} className="flex-shrink-0 text-xs">View</Button>
-                                </li>
-                            );
-                        })}
+                        {kpiData.highLiabilityClients.map(client => (
+                            <li key={client.id} className="flex items-center gap-2 p-2.5 bg-white rounded-lg border border-red-200 hover:border-red-300 hover:bg-red-50 transition-colors">
+                                <div className="flex-1 min-w-0">
+                                    <div className="text-xs font-medium text-gray-900 truncate">{client.clientName}</div>
+                                    <div className="text-xs text-gray-500">{client.percentageOfTotal.toFixed(1)}% of total liability</div>
+                                </div>
+                                <span className="text-xs font-bold text-red-600 whitespace-nowrap">{formatNumber(client.totalCredits)}</span>
+                                <Button size="sm" variant="primary" onClick={() => onNavigate('clients')} className="flex-shrink-0 text-xs">View</Button>
+                            </li>
+                        ))}
                     </ul>
                 ) : (
                     <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 text-center">

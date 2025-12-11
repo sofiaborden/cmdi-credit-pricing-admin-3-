@@ -34,6 +34,7 @@ import {
   X,
   Eye,
   Sparkles,
+  Settings,
 } from 'lucide-react';
 
 interface IconProps {
@@ -66,6 +67,9 @@ export const ClientsIcon = ({ className, size = 24 }: IconProps) => (
 );
 export const ReportsIcon = ({ className, size = 24 }: IconProps) => (
   <PieChart className={className} size={typeof size === 'number' ? size : getSizeValue(size)} />
+);
+export const SettingsIcon = ({ className, size = 24 }: IconProps) => (
+  <Settings className={className} size={typeof size === 'number' ? size : getSizeValue(size)} />
 );
 
 // General Action Icons

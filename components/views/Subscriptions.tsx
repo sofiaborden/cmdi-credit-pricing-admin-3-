@@ -1,6 +1,6 @@
 
-import React, { useState, ChangeEvent } from 'react';
-import { systemPricing as mockSystemPricing, subscriptionPlans as mockSubscriptionPlans, addOns, integrations, creditPacks as mockCreditPacks } from '../../data/mockData';
+import React, { useState, ChangeEvent, useMemo } from 'react';
+import { systemPricing as mockSystemPricing, subscriptionPlans as mockSubscriptionPlans, addOns, integrations, creditPacks as mockCreditPacks, clientTypes, clients as mockClients } from '../../data/mockData';
 import { SystemPricing, SubscriptionPlan, CreditPack, PlanStatus } from '../../types';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
@@ -8,6 +8,7 @@ import Modal from '../ui/Modal';
 import Dropdown from '../ui/Dropdown';
 import { formatCurrency, formatNumber } from '../../utils/formatters';
 import { DollarIcon, EditIcon, SaveIcon, PackageIcon, PuzzleIcon, PlusCircleIcon, SubscriptionIcon, CheckIcon, XIcon, EyeIcon, SparklesIcon } from '../ui/Icons';
+import PricingPage from './PricingPage';
 
 // Highlights Editor Component
 interface HighlightsEditorProps {
@@ -101,13 +102,11 @@ const ClientFacingPreview: React.FC<ClientFacingPreviewProps> = ({ item, type })
     const plan = isPlan ? (item as SubscriptionPlan) : null;
     const pack = !isPlan ? (item as CreditPack) : null;
 
-    // Calculate pricing display
-    const monthlyPrice = plan?.monthlyPrice || 0;
-    const annualPrice = plan?.annualPrice || 0;
+    // Calculate pricing display for record-based model
+    const pricePerRecord = plan?.pricePerRecordPerMonth || 0;
+    const monthlyCredits = plan?.monthlyCreditsIncluded || 0;
+    const overageRate = plan?.overageCreditRate || 0;
     const packPrice = pack?.price || 0;
-    const effectiveAnnualMonthly = annualPrice > 0 ? annualPrice / 12 : 0;
-    const savings = monthlyPrice * 12 - annualPrice;
-    const savingsPercent = monthlyPrice > 0 && annualPrice > 0 ? Math.round((savings / (monthlyPrice * 12)) * 100) : 0;
 
     return (
         <div className="max-w-sm mx-auto">
@@ -123,50 +122,62 @@ const ClientFacingPreview: React.FC<ClientFacingPreviewProps> = ({ item, type })
                 )}
 
                 {/* Plan/Pack Name */}
-                <div className="text-center mb-4">
+                <div className="text-center mb-2">
                     <h3 className="text-xl font-bold text-gray-900">{item.name}</h3>
                 </div>
+
+                {/* Description */}
+                <p className="text-center text-sm text-gray-600 mb-6">
+                    {item.description}
+                </p>
 
                 {/* Pricing */}
                 <div className="text-center mb-6">
                     {isPlan ? (
                         <>
-                            {/* Monthly and Annual Pricing Options */}
-                            <div className="space-y-4">
-                                {/* Monthly Option */}
-                                {monthlyPrice > 0 && (
-                                    <div className="p-3 border-2 border-gray-200 rounded-lg bg-gray-50">
-                                        <div className="text-xs font-semibold text-gray-600 uppercase mb-1">Monthly</div>
+                            {/* Record-Based Pricing Display */}
+                            <div className="space-y-3">
+                                {/* Price per Record */}
+                                {pricePerRecord > 0 ? (
+                                    <div className="p-3 border-2 border-brand-primary rounded-lg bg-brand-50">
+                                        <div className="text-xs font-semibold text-gray-600 uppercase mb-1">Pricing</div>
                                         <div className="flex items-baseline justify-center gap-1">
                                             <span className="text-3xl font-bold text-gray-900">
-                                                {formatCurrency(monthlyPrice)}
+                                                {formatCurrency(pricePerRecord, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+                                            </span>
+                                            <span className="text-gray-600 text-sm">/record/month</span>
+                                        </div>
+                                        <div className="text-xs text-gray-500 mt-1">Based on your database size</div>
+                                    </div>
+                                ) : (
+                                    <div className="p-3 border-2 border-brand-primary rounded-lg bg-brand-50">
+                                        <div className="text-xs font-semibold text-gray-600 uppercase mb-1">Free Tier</div>
+                                        <div className="flex items-baseline justify-center gap-1">
+                                            <span className="text-4xl font-bold text-brand-primary">
+                                                $0
                                             </span>
                                             <span className="text-gray-600">/month</span>
                                         </div>
-                                        <div className="text-xs text-gray-500 mt-1">Billed monthly</div>
+                                        <div className="text-xs text-gray-500 mt-1">No monthly fees</div>
                                     </div>
                                 )}
 
-                                {/* Annual Option */}
-                                {annualPrice > 0 && (
-                                    <div className={`p-3 border-2 rounded-lg ${savingsPercent > 0 ? 'border-green-500 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
-                                        <div className="text-xs font-semibold text-gray-600 uppercase mb-1">Annual</div>
-                                        <div className="flex items-baseline justify-center gap-1">
-                                            <span className="text-3xl font-bold text-gray-900">
-                                                {formatCurrency(effectiveAnnualMonthly)}
-                                            </span>
-                                            <span className="text-gray-600">/month</span>
-                                        </div>
-                                        <div className="text-xs text-gray-500 mt-1">
-                                            {formatCurrency(annualPrice)}/year, billed annually
-                                        </div>
-                                        {savingsPercent > 0 && (
-                                            <div className="mt-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-green-600 text-white">
-                                                Save {savingsPercent}% ({formatCurrency(savings)})
-                                            </div>
-                                        )}
+                                {/* Credits & Overage Info */}
+                                <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 text-left space-y-2">
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-gray-600">Credits Included:</span>
+                                        <span className="font-semibold text-gray-900">{formatNumber(monthlyCredits)}/month</span>
                                     </div>
-                                )}
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-gray-600">Overage Rate:</span>
+                                        <span className="font-semibold text-gray-900">{formatCurrency(overageRate)}/credit</span>
+                                    </div>
+                                    <div className="pt-2 border-t border-gray-200">
+                                        <p className="text-xs text-gray-500 italic">
+                                            Credits refresh monthly (no rollover)
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
                         </>
                     ) : (
@@ -175,11 +186,6 @@ const ClientFacingPreview: React.FC<ClientFacingPreviewProps> = ({ item, type })
                         </div>
                     )}
                 </div>
-
-                {/* Description */}
-                <p className="text-center text-sm text-gray-600 mb-6">
-                    {item.description}
-                </p>
 
                 {/* Highlights */}
                 {item.highlights && item.highlights.length > 0 && (
@@ -220,27 +226,61 @@ interface PlanFormProps {
 
 const PlanForm: React.FC<PlanFormProps> = ({ plan, onSave, onCancel }) => {
     const [formData, setFormData] = useState(plan);
-    const [activeTab, setActiveTab] = useState<'details' | 'highlights' | 'preview'>('details');
+    const [activeTab, setActiveTab] = useState<'details' | 'clients' | 'highlights' | 'preview'>('details');
+    const [estimatedRecords, setEstimatedRecords] = useState(10000); // For pricing calculator
 
     const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
         const numValue = Number(value);
-        setFormData(prev => ({ ...prev, [name]: ['monthlyPrice', 'annualPrice', 'baselineCredits', 'overageCreditRate', 'creditExpirationDays'].includes(name) ? numValue : value }));
+        setFormData(prev => ({ ...prev, [name]: ['monthlyPrice', 'pricePerRecordPerMonth', 'monthlyCreditsIncluded', 'overageCreditRate'].includes(name) ? numValue : value }));
     }
 
     const handleHighlightsChange = (highlights: string[]) => {
         setFormData(prev => ({ ...prev, highlights }));
     };
 
-    // Calculate savings for display
-    const calculateSavings = () => {
-        const monthlyTotal = formData.monthlyPrice * 12;
-        const savings = monthlyTotal - formData.annualPrice;
-        const savingsPercent = monthlyTotal > 0 ? Math.round((savings / monthlyTotal) * 100) : 0;
-        return { savings, savingsPercent };
-    }
+    // Client type assignment handlers
+    const handleClientTypeToggle = (clientType: string) => {
+        const currentTypes = formData.assignedClientTypes || [];
+        const newTypes = currentTypes.includes(clientType)
+            ? currentTypes.filter(t => t !== clientType)
+            : [...currentTypes, clientType];
+        setFormData(prev => ({ ...prev, assignedClientTypes: newTypes }));
+    };
 
-    const { savings, savingsPercent } = calculateSavings();
+    const handleIndividualClientToggle = (clientId: string) => {
+        const currentClients = formData.assignedClientIds || [];
+        const newClients = currentClients.includes(clientId)
+            ? currentClients.filter(c => c !== clientId)
+            : [...currentClients, clientId];
+        setFormData(prev => ({ ...prev, assignedClientIds: newClients }));
+    };
+
+    // Calculate client counts for preview
+    const clientCounts = useMemo(() => {
+        const counts: Record<string, number> = {};
+        clientTypes.forEach(type => {
+            counts[type] = mockClients.filter(c => c.clientType === type).length;
+        });
+        return counts;
+    }, []);
+
+    const affectedClientsCount = useMemo(() => {
+        const typeClients = mockClients.filter(c =>
+            formData.assignedClientTypes?.includes(c.clientType)
+        ).length;
+        const individualClients = formData.assignedClientIds?.length || 0;
+        return typeClients + individualClients;
+    }, [formData.assignedClientTypes, formData.assignedClientIds]);
+
+    // Calculate estimated monthly cost based on record count
+    const calculateEstimatedCost = () => {
+        const basePrice = formData.monthlyPrice || 0;
+        const recordPrice = (formData.pricePerRecordPerMonth || 0) * estimatedRecords;
+        return basePrice + recordPrice;
+    };
+
+    const estimatedCost = calculateEstimatedCost();
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -261,7 +301,25 @@ const PlanForm: React.FC<PlanFormProps> = ({ plan, onSave, onCancel }) => {
                                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                         }`}
                     >
-                        Plan Details
+                        Details
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab('clients')}
+                        className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                            activeTab === 'clients'
+                                ? 'border-brand-primary text-brand-primary'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        }`}
+                    >
+                        <span className="flex items-center gap-1">
+                            Clients
+                            {affectedClientsCount > 0 && (
+                                <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-semibold text-white bg-brand-primary rounded-full">
+                                    {affectedClientsCount}
+                                </span>
+                            )}
+                        </span>
                     </button>
                     <button
                         type="button"
@@ -305,69 +363,112 @@ const PlanForm: React.FC<PlanFormProps> = ({ plan, onSave, onCancel }) => {
                 <input type="text" name="name" id="name" value={formData.name} onChange={handleChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-primary focus:ring-brand-primary sm:text-sm" />
             </div>
 
-            {/* Pricing Section */}
-            <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                <h4 className="text-sm font-semibold text-gray-900 mb-3">Pricing</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label htmlFor="monthlyPrice" className="block text-sm font-medium text-gray-700">Monthly Price (USD)</label>
-                        <input type="number" step="0.01" name="monthlyPrice" id="monthlyPrice" value={formData.monthlyPrice} onChange={handleChange} min="0" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-primary focus:ring-brand-primary sm:text-sm" />
-                    </div>
-                    <div>
-                        <label htmlFor="annualPrice" className="block text-sm font-medium text-gray-700">Annual Price (USD)</label>
-                        <input type="number" step="0.01" name="annualPrice" id="annualPrice" value={formData.annualPrice} onChange={handleChange} min="0" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-primary focus:ring-brand-primary sm:text-sm" />
-                    </div>
-                </div>
-                {formData.annualPrice > 0 && (
-                    <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-md">
-                        <div className="text-sm space-y-1">
-                            <div className="flex justify-between">
-                                <span className="text-gray-700">Effective monthly rate (annual):</span>
-                                <span className="font-semibold text-gray-900">{formatCurrency(formData.annualPrice / 12)}/mo</span>
-                            </div>
-                            {savings > 0 && (
-                                <div className="flex justify-between">
-                                    <span className="text-gray-700">Annual savings:</span>
-                                    <span className="text-green-600 font-semibold">{formatCurrency(savings)}/year ({savingsPercent}% off)</span>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )}
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label htmlFor="baselineCredits" className="block text-sm font-medium text-gray-700">Baseline Credits (per month)</label>
-                    <input type="number" name="baselineCredits" id="baselineCredits" value={formData.baselineCredits} onChange={handleChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-primary focus:ring-brand-primary sm:text-sm" />
-                    <p className="mt-1 text-xs text-gray-500">Credits allocated each month for both monthly and annual plans</p>
-                </div>
-                <div>
-                    <label htmlFor="overageCreditRate" className="block text-sm font-medium text-gray-700">Overage Rate ($)</label>
-                    <input type="number" step="0.001" name="overageCreditRate" id="overageCreditRate" value={formData.overageCreditRate} onChange={handleChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-primary focus:ring-brand-primary sm:text-sm" />
-                </div>
-            </div>
             <div>
                 <label htmlFor="description" className="block text-sm font-medium text-gray-700">Description</label>
                 <textarea name="description" id="description" value={formData.description} onChange={handleChange} rows={3} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-primary focus:ring-brand-primary sm:text-sm" />
+                <p className="mt-1 text-xs text-gray-500">This description will appear under the plan name in the pricing page</p>
             </div>
-            <div>
-                <label htmlFor="creditExpirationDays" className="block text-sm font-medium text-gray-700">Credit Expiration Period</label>
-                <select
-                    name="creditExpirationDays"
-                    id="creditExpirationDays"
-                    value={formData.creditExpirationDays || 0}
-                    onChange={handleChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-primary focus:ring-brand-primary sm:text-sm"
-                >
-                    <option value={0}>Never expires</option>
-                    <option value={30}>30 days</option>
-                    <option value={60}>60 days</option>
-                    <option value={90}>90 days</option>
-                    <option value={180}>180 days</option>
-                    <option value={365}>365 days</option>
-                </select>
-                <p className="mt-1 text-xs text-gray-500">Monthly baseline credits will expire this many days after being allocated to the client</p>
+
+            {/* Pricing Section */}
+            <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                <h4 className="text-sm font-semibold text-gray-900 mb-3">Record-Based Pricing</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label htmlFor="pricePerRecordPerMonth" className="block text-sm font-medium text-gray-700">Price per Record per Month ($)</label>
+                        <input
+                            type="number"
+                            step="0.0001"
+                            name="pricePerRecordPerMonth"
+                            id="pricePerRecordPerMonth"
+                            value={formData.pricePerRecordPerMonth || 0}
+                            onChange={handleChange}
+                            min="0"
+                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-primary focus:ring-brand-primary sm:text-sm"
+                        />
+                        <p className="mt-1 text-xs text-gray-500">Cost per record in Crimson People database</p>
+                    </div>
+                    <div>
+                        <label htmlFor="monthlyPrice" className="block text-sm font-medium text-gray-700">Base Subscription Fee ($)</label>
+                        <input
+                            type="number"
+                            step="0.01"
+                            name="monthlyPrice"
+                            id="monthlyPrice"
+                            value={formData.monthlyPrice}
+                            onChange={handleChange}
+                            min="0"
+                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-primary focus:ring-brand-primary sm:text-sm"
+                        />
+                        <p className="mt-1 text-xs text-gray-500">Fixed monthly fee (usually $0 for record-based pricing)</p>
+                    </div>
+                </div>
+
+                {/* Pricing Calculator */}
+                <div className="mt-4 p-3 bg-white border border-gray-200 rounded-md">
+                    <h5 className="text-xs font-semibold text-gray-700 mb-2">Pricing Calculator</h5>
+                    <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                            <label htmlFor="estimatedRecords" className="text-xs text-gray-600 whitespace-nowrap">Estimated Records:</label>
+                            <input
+                                type="number"
+                                id="estimatedRecords"
+                                value={estimatedRecords}
+                                onChange={(e) => setEstimatedRecords(Number(e.target.value))}
+                                min="0"
+                                step="1000"
+                                className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-brand-primary focus:ring-brand-primary text-sm"
+                            />
+                        </div>
+                        <div className="pt-2 border-t border-gray-200">
+                            <div className="flex justify-between text-sm">
+                                <span className="text-gray-600">Base Fee:</span>
+                                <span className="font-medium">{formatCurrency(formData.monthlyPrice || 0)}</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                                <span className="text-gray-600">Record Charges:</span>
+                                <span className="font-medium">{formatCurrency((formData.pricePerRecordPerMonth || 0) * estimatedRecords)}</span>
+                            </div>
+                            <div className="flex justify-between text-sm font-semibold text-gray-900 pt-2 border-t border-gray-200">
+                                <span>Estimated Monthly Cost:</span>
+                                <span className="text-brand-primary">{formatCurrency(estimatedCost)}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Credits Section */}
+            <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                <h4 className="text-sm font-semibold text-gray-900 mb-3">Credits</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label htmlFor="monthlyCreditsIncluded" className="block text-sm font-medium text-gray-700">Credits Included per Month</label>
+                        <input
+                            type="number"
+                            name="monthlyCreditsIncluded"
+                            id="monthlyCreditsIncluded"
+                            value={formData.monthlyCreditsIncluded}
+                            onChange={handleChange}
+                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-primary focus:ring-brand-primary sm:text-sm"
+                        />
+                        <p className="mt-1 text-xs text-gray-500">
+                            Credits refresh monthly and do not roll over
+                        </p>
+                    </div>
+                    <div>
+                        <label htmlFor="overageCreditRate" className="block text-sm font-medium text-gray-700">Overage Rate ($ per credit)</label>
+                        <input
+                            type="number"
+                            step="0.001"
+                            name="overageCreditRate"
+                            id="overageCreditRate"
+                            value={formData.overageCreditRate}
+                            onChange={handleChange}
+                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-primary focus:ring-brand-primary sm:text-sm"
+                        />
+                        <p className="mt-1 text-xs text-gray-500">Cost per credit when monthly credits are exceeded</p>
+                    </div>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -407,6 +508,115 @@ const PlanForm: React.FC<PlanFormProps> = ({ plan, onSave, onCancel }) => {
                     Mark as "Most Popular"
                 </label>
             </div>
+                </div>
+            )}
+
+            {/* Clients Tab */}
+            {activeTab === 'clients' && (
+                <div className="space-y-4">
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <h4 className="text-sm font-semibold text-gray-900 mb-2">Client Assignment</h4>
+                        <p className="text-sm text-gray-600 mb-2">
+                            Assign this subscription tier to client types or individual clients.
+                            Clients will automatically be billed based on their record count and this tier's pricing.
+                        </p>
+                        {affectedClientsCount > 0 && (
+                            <div className="mt-2 p-2 bg-white border border-blue-300 rounded">
+                                <p className="text-xs font-semibold text-gray-700">
+                                    📊 {affectedClientsCount} client{affectedClientsCount !== 1 ? 's' : ''} will be assigned to this tier
+                                </p>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Client Type Assignment */}
+                    <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                        <h4 className="text-sm font-semibold text-gray-900 mb-3">Assign by Client Type (Bulk)</h4>
+                        <p className="text-xs text-gray-500 mb-3">
+                            Select client types to automatically assign all clients of that type to this tier
+                        </p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {clientTypes.map(type => {
+                                const isAssigned = formData.assignedClientTypes?.includes(type) || false;
+                                const count = clientCounts[type] || 0;
+                                return (
+                                    <div
+                                        key={type}
+                                        className={`flex items-center justify-between p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                                            isAssigned
+                                                ? 'border-brand-primary bg-brand-50'
+                                                : 'border-gray-200 bg-white hover:border-gray-300'
+                                        }`}
+                                        onClick={() => handleClientTypeToggle(type)}
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="checkbox"
+                                                checked={isAssigned}
+                                                onChange={() => handleClientTypeToggle(type)}
+                                                onClick={(e) => e.stopPropagation()}
+                                                className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-gray-300 rounded"
+                                            />
+                                            <span className="text-sm font-medium text-gray-900">{type}</span>
+                                        </div>
+                                        <span className="text-xs text-gray-500">
+                                            {count} client{count !== 1 ? 's' : ''}
+                                        </span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Individual Client Assignment */}
+                    <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                        <h4 className="text-sm font-semibold text-gray-900 mb-3">Assign Individual Clients</h4>
+                        <p className="text-xs text-gray-500 mb-3">
+                            Select specific clients to assign to this tier (overrides client type assignment)
+                        </p>
+                        <div className="max-h-64 overflow-y-auto space-y-2">
+                            {mockClients.map(client => {
+                                const isAssigned = formData.assignedClientIds?.includes(client.id) || false;
+                                const isTypeAssigned = formData.assignedClientTypes?.includes(client.clientType) || false;
+                                return (
+                                    <div
+                                        key={client.id}
+                                        className={`flex items-center justify-between p-2 border rounded-lg cursor-pointer transition-all ${
+                                            isAssigned
+                                                ? 'border-brand-primary bg-brand-50'
+                                                : isTypeAssigned
+                                                ? 'border-green-300 bg-green-50'
+                                                : 'border-gray-200 bg-white hover:border-gray-300'
+                                        }`}
+                                        onClick={() => handleIndividualClientToggle(client.id)}
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="checkbox"
+                                                checked={isAssigned}
+                                                onChange={() => handleIndividualClientToggle(client.id)}
+                                                onClick={(e) => e.stopPropagation()}
+                                                className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-gray-300 rounded"
+                                            />
+                                            <div>
+                                                <span className="text-sm font-medium text-gray-900">{client.clientName}</span>
+                                                <span className="text-xs text-gray-500 ml-2">({client.clientType})</span>
+                                                {isTypeAssigned && !isAssigned && (
+                                                    <span className="ml-2 text-xs text-green-600 italic">via type assignment</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <div className="text-xs text-gray-500">{client.dbName}</div>
+                                            {client.recordCount && (
+                                                <div className="text-xs text-gray-400">{formatNumber(client.recordCount)} records</div>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
                 </div>
             )}
 
@@ -639,6 +849,7 @@ const Subscriptions: React.FC = () => {
     const [editingPlan, setEditingPlan] = useState<SubscriptionPlan | null>(null);
     const [isPackModalOpen, setIsPackModalOpen] = useState(false);
     const [editingPack, setEditingPack] = useState<CreditPack | null>(null);
+    const [isPricingPreviewOpen, setIsPricingPreviewOpen] = useState(false);
 
     // Filtering and sorting state
     const [planStatusFilter, setPlanStatusFilter] = useState<PlanStatus | 'all'>('all');
@@ -883,9 +1094,9 @@ const Subscriptions: React.FC = () => {
                     id: `new-${Date.now()}`,
                     name: 'New Plan',
                     monthlyPrice: 0,
-                    annualPrice: 0,
+                    pricePerRecordPerMonth: 0,
                     description: '',
-                    baselineCredits: 0,
+                    monthlyCreditsIncluded: 0,
                     overageCreditRate: 0,
                     status: 'active',
                     tierLevel: 1,
@@ -1017,15 +1228,12 @@ const Subscriptions: React.FC = () => {
                           {/* Pricing */}
                           <div className="mb-3">
                               <div className="flex items-baseline gap-1">
-                                  <span className="text-2xl font-bold text-gray-900">{formatCurrency(plan.monthlyPrice)}</span>
-                                  <span className="text-sm text-gray-600">/mo</span>
+                                  <span className="text-2xl font-bold text-gray-900">{formatCurrency(plan.pricePerRecordPerMonth || 0, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</span>
+                                  <span className="text-sm text-gray-600">/record/mo</span>
                               </div>
-                              {plan.annualPrice > 0 && (
+                              {plan.monthlyPrice > 0 && (
                                   <div className="text-xs text-gray-600 mt-1">
-                                      {formatCurrency(plan.annualPrice)}/yr ({formatCurrency(plan.annualPrice / 12)}/mo)
-                                      <span className="text-green-600 font-medium ml-1">
-                                          Save {formatCurrency(plan.monthlyPrice * 12 - plan.annualPrice)}
-                                      </span>
+                                      Base: {formatCurrency(plan.monthlyPrice)}/mo
                                   </div>
                               )}
                           </div>
@@ -1034,15 +1242,11 @@ const Subscriptions: React.FC = () => {
                           <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
                               <div>
                                   <div className="text-gray-600">Credits/month:</div>
-                                  <div className="font-semibold text-gray-900">{formatNumber(plan.baselineCredits)}</div>
+                                  <div className="font-semibold text-gray-900">{formatNumber(plan.monthlyCreditsIncluded)}</div>
                               </div>
                               <div>
                                   <div className="text-gray-600">Expiration:</div>
-                                  <div className="font-semibold text-gray-900">
-                                      {plan.creditExpirationDays && plan.creditExpirationDays > 0
-                                          ? `${plan.creditExpirationDays} days`
-                                          : 'Never'}
-                                  </div>
+                                  <div className="font-semibold text-gray-900">Monthly</div>
                               </div>
                               <div>
                                   <div className="text-gray-600">Overage rate:</div>
@@ -1128,7 +1332,7 @@ const Subscriptions: React.FC = () => {
                           {/* Header */}
                           <div className="flex justify-between items-start mb-1">
                               <div className="flex-1 flex items-center gap-2 min-w-0">
-                                  <h3 className="text-base font-bold text-gray-900 truncate">{pack.name}</h3>
+                                  <h3 className="text-base font-bold text-gray-900 break-words" title={pack.name}>{pack.name}</h3>
                                   {renderStatusBadge(pack.status)}
                               </div>
 
@@ -1219,6 +1423,68 @@ const Subscriptions: React.FC = () => {
           </div>
       </Card>
 
+      {/* Pricing Page Preview Section */}
+      <Card
+        title="Client-Facing Pricing Page"
+        icon={<EyeIcon />}
+        actions={
+            <Button onClick={() => setIsPricingPreviewOpen(true)} size="sm">
+                <EyeIcon /> Preview Pricing Page
+            </Button>
+        }
+        padding="p-6"
+      >
+          <div className="space-y-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h4 className="text-sm font-semibold text-gray-900 mb-2">Public Pricing Page</h4>
+                  <p className="text-sm text-gray-600 mb-3">
+                      This is the pricing page that clients will see. It displays all active subscription tiers
+                      with their pricing, features, and highlights in a clean, professional layout.
+                  </p>
+                  <div className="flex items-center gap-2">
+                      <code className="text-xs bg-white px-2 py-1 rounded border border-blue-300 font-mono">
+                          /pricing
+                      </code>
+                      <button
+                          onClick={() => {
+                              navigator.clipboard.writeText(window.location.origin + '/pricing');
+                              alert('Pricing page URL copied to clipboard!');
+                          }}
+                          className="text-xs text-brand-primary hover:text-brand-700 font-medium"
+                      >
+                          Copy Link
+                      </button>
+                  </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                      <div className="text-sm font-semibold text-gray-700 mb-1">Active Plans</div>
+                      <div className="text-2xl font-bold text-gray-900">
+                          {plans.filter(p => p.status === 'active').length}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">Visible to clients</div>
+                  </div>
+                  <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                      <div className="text-sm font-semibold text-gray-700 mb-1">Most Popular</div>
+                      <div className="text-lg font-bold text-gray-900">
+                          {plans.find(p => p.isMostPopular)?.name || 'None'}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">Highlighted tier</div>
+                  </div>
+                  <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                      <div className="text-sm font-semibold text-gray-700 mb-1">Price Range</div>
+                      <div className="text-lg font-bold text-gray-900">
+                          {formatCurrency(Math.min(...plans.filter(p => p.status === 'active').map(p => p.pricePerRecordPerMonth || 0)), { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+                          {' - '}
+                          {formatCurrency(Math.max(...plans.filter(p => p.status === 'active').map(p => p.pricePerRecordPerMonth || 0)), { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">Per record/month</div>
+                  </div>
+              </div>
+          </div>
+      </Card>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
         <Card title="Service Add-Ons" icon={<PlusCircleIcon />} padding="p-0">
           <ul className="divide-y divide-gray-200/80">
@@ -1266,6 +1532,15 @@ const Subscriptions: React.FC = () => {
           title={editingPack ? (editingPack.id.startsWith('new-pack-') ? 'Create New Credit Pack' : `Edit ${editingPack.name}`) : ''}
       >
           {editingPack && <CreditPackForm pack={editingPack} onSave={handleSavePack} onCancel={handleClosePackModal} />}
+      </Modal>
+
+      <Modal
+          isOpen={isPricingPreviewOpen}
+          onClose={() => setIsPricingPreviewOpen(false)}
+          title="Pricing Page Preview"
+          size="full"
+      >
+          <PricingPage isPreview={true} plans={plans} creditPacks={creditPacks} />
       </Modal>
 
     </div>

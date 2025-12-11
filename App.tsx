@@ -8,6 +8,7 @@ import Features from './components/views/Features';
 import Clients from './components/views/Clients';
 import ClientDetail from './components/views/ClientDetail';
 import Reports from './components/views/Reports';
+import Settings from './components/views/Settings';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>('dashboard');
@@ -37,6 +38,8 @@ const App: React.FC = () => {
         return selectedClient ? <ClientDetail client={selectedClient} onBack={() => handleNavigate('clients')} /> : <Clients onViewClient={handleViewClient} />;
       case 'reports':
         return <Reports />;
+      case 'settings':
+        return <Settings />;
       default:
         return <Dashboard onNavigate={handleNavigate} />;
     }
@@ -53,6 +56,7 @@ const App: React.FC = () => {
       'clients': 'Client Billing Management',
       'client-detail': 'Client Details',
       'reports': 'Billing Dashboard',
+      'settings': 'Settings',
     };
     return titles[view];
   };

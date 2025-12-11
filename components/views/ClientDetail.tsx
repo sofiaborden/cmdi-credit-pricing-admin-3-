@@ -3,11 +3,12 @@ import React, { useMemo, useState } from 'react';
 import { Client, ClientStatus, CreditPack, CreditTransaction, Discount } from '../../types';
 import { subscriptionPlans, features as allFeatures, creditPacks, addOns as allAddOns } from '../../data/mockData';
 import Card from '../ui/Card';
-import { formatCurrency, formatNumber, exportToCsv } from '../../utils/formatters';
+import { formatCurrency, formatNumber, exportToCsv, formatDate as formatDateTime } from '../../utils/formatters';
 import Button from '../ui/Button';
 import Modal from '../ui/Modal';
 import Accordion from '../ui/Accordion';
 import Dropdown from '../ui/Dropdown';
+import { RefreshCw } from 'lucide-react';
 import {
   ArrowLeftIcon,
   CalendarIcon,
@@ -53,6 +54,7 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) => {
   const [isFreeCreditsModalOpen, setIsFreeCreditsModalOpen] = useState(false);
   const [viewPeriod, setViewPeriod] = useState<string>('current');
   const [activeTab, setActiveTab] = useState<'overview' | 'credits' | 'credit-usage' | 'insights' | 'transactions'>('overview');
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
 
   const billingPeriods = useMemo(() => {
@@ -79,9 +81,9 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) => {
     let usageByCat: { [key: string]: { items: any[], totalFromPlan: number, totalOverage: number, totalOverageCost: number } } = {};
     let totalCreditsUsed = 0;
     let forecastingData = null;
-    
+
     if (viewPeriod === 'current' && plan) {
-        let remainingBaseline = plan.baselineCredits;
+        let remainingBaseline = plan.monthlyCreditsIncluded || 0;
         const overageRate = plan.overageCreditRate || 0;
         const featureUsageBreakdown: { [key: string]: { name: string; category: string; fromPlan: number; overage: number; totalCredits: number; overageCost: number; creditCost: number; units: number; } } = {};
 
@@ -95,7 +97,7 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) => {
                 const creditsUsed = Math.abs(transaction.amount);
                 const units = feature.creditCost > 0 ? creditsUsed / feature.creditCost : 0;
                 totalCreditsUsed += creditsUsed;
-                
+
                 if (!featureUsageBreakdown[feature.id]) {
                     featureUsageBreakdown[feature.id] = { name: feature.name, category: feature.category, fromPlan: 0, overage: 0, totalCredits: 0, overageCost: 0, creditCost: feature.creditCost, units: 0 };
                 }
@@ -108,7 +110,7 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) => {
                 featureUsageBreakdown[feature.id].units += units;
                 featureUsageBreakdown[feature.id].totalCredits += creditsUsed;
                 featureUsageBreakdown[feature.id].overageCost += overage * overageRate;
-                
+
                 remainingBaseline -= fromPlan;
             }
         }
@@ -122,24 +124,24 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) => {
             usageByCat[usage.category].totalOverage += usage.overage;
             usageByCat[usage.category].totalOverageCost += usage.overageCost;
         });
-        
+
         const today = new Date();
         const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
         const dayOfMonth = today.getDate();
-        
+
         const burnRate = dayOfMonth > 0 ? totalCreditsUsed / dayOfMonth : 0;
         const projectedTotalUsage = burnRate * daysInMonth;
-        const projectedOverage = Math.max(0, projectedTotalUsage - plan.baselineCredits);
+        const projectedOverage = Math.max(0, projectedTotalUsage - (plan.monthlyCreditsIncluded || 0));
         const projectedOverageCost = projectedOverage * plan.overageCreditRate;
         const projectedTotalBill = plan.monthlyPrice + projectedOverageCost;
 
         let recommendation = { text: "Usage is on track with the current plan.", savings: 0, type: 'on-track' as 'on-track' | 'upgrade' | 'pack' };
-        
+
         const currentPlanIndex = subscriptionPlans.findIndex(p => p.id === plan.id);
         const nextPlan = subscriptionPlans[currentPlanIndex + 1];
 
         if (nextPlan && projectedOverage > 0) {
-            const nextPlanProjectedOverage = Math.max(0, projectedTotalUsage - nextPlan.baselineCredits);
+            const nextPlanProjectedOverage = Math.max(0, projectedTotalUsage - (nextPlan.monthlyCreditsIncluded || 0));
             const nextPlanProjectedCost = nextPlan.monthlyPrice + (nextPlanProjectedOverage * nextPlan.overageCreditRate);
             const potentialSavings = projectedTotalBill - nextPlanProjectedCost;
 
@@ -183,8 +185,8 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) => {
     }
 
     const totalBalance = clientData.creditBalance.monthly + clientData.creditBalance.rollover + clientData.creditBalance.addOn;
-    const baselineCredits = plan?.baselineCredits || 0;
-    
+    const baselineCredits = plan?.monthlyCreditsIncluded || 0;
+
     const creditsFromPlan = Math.min(totalCreditsUsed, baselineCredits);
     const overageCredits = Math.max(0, totalCreditsUsed - baselineCredits);
     const overageCost = overageCredits * (plan?.overageCreditRate || 0);
@@ -258,7 +260,7 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) => {
       setIsDiscountModalOpen(false);
   }
 
-  const handleAddFreeCredits = (credits: number, expirationDate: string) => {
+  const handleAddFreeCredits = (credits: number, expirationDate: string, memo?: string) => {
       setClientData(prev => ({
           ...prev,
           creditBalance: {
@@ -268,13 +270,36 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) => {
           transactions: [...prev.transactions, {
               id: `t-${Date.now()}`,
               date: new Date().toISOString().split('T')[0],
-              type: 'Credit Adjustment',
+              type: 'Free Credits',
               description: `Free credits added (expires: ${expirationDate})`,
               amount: credits,
-              balance: billingData.totalBalance + credits
+              balance: billingData.totalBalance + credits,
+              memo: memo || undefined
           }]
       }));
       setIsFreeCreditsModalOpen(false);
+  }
+
+  // Refresh client data from Crimson API
+  const refreshClientData = async () => {
+    setIsRefreshing(true);
+
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    // Update client with simulated fresh data from Crimson API
+    const randomUsage = Math.floor(Math.random() * 50000) + 10000;
+    const randomRecordCount = Math.floor(Math.random() * 100000) + 5000;
+
+    setClientData(prev => ({
+      ...prev,
+      currentCreditCount: randomUsage,
+      creditCountLastUpdated: new Date().toISOString(),
+      recordCount: randomRecordCount,
+      recordCountLastUpdated: new Date().toISOString(),
+    }));
+
+    setIsRefreshing(false);
   }
 
   const handlePrint = () => {
@@ -432,8 +457,12 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) => {
                                 <span className="font-semibold text-gray-800">{billingData.plan?.name}</span>
                             </li>
                               <li className="flex justify-between items-center">
-                                <span className="text-gray-500">Amount:</span>
+                                <span className="text-gray-500">Base Subscription:</span>
                                 <span className="font-semibold text-gray-800">{formatCurrency(billingData.baseFee)}/month</span>
+                            </li>
+                              <li className="flex justify-between items-center">
+                                <span className="text-gray-500">Price Per Record:</span>
+                                <span className="font-semibold text-gray-800">{formatCurrency(plan?.pricePerRecordPerMonth || 0, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}/record/month</span>
                             </li>
                               <li className="flex justify-between items-center">
                                 <span className="text-gray-500">Current Period:</span>
@@ -503,7 +532,7 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) => {
                                 <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                                     <p className="text-xs font-semibold text-blue-800 mb-1">Rollover Policy</p>
                                     <p className="text-xs text-blue-700">
-                                        Up to {formatNumber(plan.baselineCredits * 0.2)} monthly credits ({plan.name} plan) can roll over to the next month
+                                        Up to {formatNumber((plan.monthlyCreditsIncluded || 0) * 0.2)} monthly credits ({plan.name} plan) can roll over to the next month
                                     </p>
                                 </div>
                             )}
@@ -640,7 +669,14 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) => {
                                         <tr key={t.id}>
                                             <td className="px-4 py-3 whitespace-nowrap text-gray-500">{t.date}</td>
                                             <td className="px-4 py-3 whitespace-nowrap text-gray-500">{t.type}</td>
-                                            <td className="px-4 py-3 text-gray-800">{t.description}</td>
+                                            <td className="px-4 py-3 text-gray-800">
+                                                <div>{t.description}</div>
+                                                {t.memo && (
+                                                    <div className="mt-1 text-xs text-gray-500 italic">
+                                                        📝 {t.memo}
+                                                    </div>
+                                                )}
+                                            </td>
                                             <td className={`px-4 py-3 whitespace-nowrap font-semibold text-right ${t.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>{t.amount >= 0 ? `+${formatNumber(t.amount)}` : formatNumber(t.amount)}</td>
                                             <td className="px-4 py-3 whitespace-nowrap text-gray-500 text-right">{formatNumber(t.balance)}</td>
                                         </tr>
@@ -658,14 +694,90 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) => {
                 title="Billing Summary"
                 icon={<DollarIcon />}
                 actions={
-                    <div className="no-print">
-                        <Button variant="secondary" size="sm" onClick={() => setIsDiscountModalOpen(true)} disabled={viewPeriod !== 'current'}>Add Discount</Button>
+                    <div className="no-print flex items-center gap-2">
+                        <button
+                            onClick={refreshClientData}
+                            disabled={isRefreshing}
+                            className="p-1.5 text-gray-400 hover:text-brand-600 transition-colors disabled:opacity-50"
+                            title="Refresh data from Crimson API"
+                        >
+                            <RefreshCw className={isRefreshing ? 'animate-spin' : ''} size={16} />
+                        </button>
+                        <button
+                            onClick={() => setIsDiscountModalOpen(true)}
+                            disabled={viewPeriod !== 'current'}
+                            className="px-2 py-1 text-xs font-medium text-gray-700 hover:text-brand-600 border border-gray-300 rounded hover:border-brand-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            + Discount
+                        </button>
                     </div>
                 }
                 padding="p-5"
             >
                 <div className="divide-y divide-gray-100">
+                    {/* Database Records & Monthly Fee */}
                     <div className="pb-4">
+                        <h4 className="text-sm font-semibold text-gray-600 mb-3">Database Records & Monthly Fee</h4>
+                        <div className="space-y-3">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <span className="text-sm text-gray-500">Records in Database</span>
+                                    {clientData.recordCountLastUpdated && (
+                                        <p className="text-xs text-gray-400 mt-0.5">
+                                            Updated: {formatDateTime(clientData.recordCountLastUpdated)}
+                                        </p>
+                                    )}
+                                </div>
+                                <span className="text-lg font-bold text-gray-900">
+                                    {clientData.recordCount !== undefined ? formatNumber(clientData.recordCount) : 'N/A'}
+                                </span>
+                            </div>
+
+                            {clientData.recordCount !== undefined && plan && (
+                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-2">
+                                    <p className="text-xs font-semibold text-blue-800 mb-2">Monthly Fee Calculation</p>
+                                    <div className="space-y-1.5 text-xs">
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-blue-700">Base Subscription:</span>
+                                            <span className="font-medium text-blue-900">{formatCurrency(plan.monthlyPrice)}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-blue-700">
+                                                Records ({formatNumber(clientData.recordCount)} × {formatCurrency(plan.pricePerRecordPerMonth || 0, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}):
+                                            </span>
+                                            <span className="font-medium text-blue-900">
+                                                {formatCurrency(clientData.recordCount * (plan.pricePerRecordPerMonth || 0))}
+                                            </span>
+                                        </div>
+                                        <div className="flex justify-between items-center pt-1.5 border-t border-blue-300">
+                                            <span className="font-bold text-blue-900">Monthly Fee:</span>
+                                            <span className="text-base font-bold text-blue-900">
+                                                {formatCurrency(plan.monthlyPrice + (clientData.recordCount * (plan.pricePerRecordPerMonth || 0)))}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {clientData.currentCreditCount !== undefined && (
+                                <div className="flex justify-between items-start pt-2">
+                                    <div>
+                                        <span className="text-sm text-gray-500">Current Credit Usage</span>
+                                        {clientData.creditCountLastUpdated && (
+                                            <p className="text-xs text-gray-400 mt-0.5">
+                                                Updated: {formatDateTime(clientData.creditCountLastUpdated)}
+                                            </p>
+                                        )}
+                                    </div>
+                                    <span className="text-base font-semibold text-gray-900">
+                                        {formatNumber(clientData.currentCreditCount)}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="py-4">
                         <h4 className="text-sm font-semibold text-gray-600 mb-3">Usage Breakdown</h4>
                         <ul className="text-sm space-y-3">
                             <li className="flex justify-between items-center">
@@ -735,7 +847,14 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) => {
           <div className="space-y-4">
               <p>Select a new plan for {clientData.clientName}. The change will be effective immediately.</p>
               <select defaultValue={plan?.id} onChange={(e) => handleSubscriptionChange(e.target.value)} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-primary focus:ring-brand-primary sm:text-sm">
-                  {subscriptionPlans.map(p => <option key={p.id} value={p.id}>{p.name} - {formatCurrency(p.monthlyPrice)}/month</option>)}
+                  {/* Show current plan even if not active */}
+                  {plan && plan.status !== 'active' && (
+                      <option key={plan.id} value={plan.id}>{plan.name} - {formatCurrency(plan.monthlyPrice)}/month (Current - {plan.status})</option>
+                  )}
+                  {/* Show only active plans */}
+                  {subscriptionPlans.filter(p => p.status === 'active').map(p => (
+                      <option key={p.id} value={p.id}>{p.name} - {formatCurrency(p.monthlyPrice)}/month</option>
+                  ))}
               </select>
           </div>
       </Modal>
@@ -802,6 +921,7 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) => {
               const formData = new FormData(e.currentTarget);
               const credits = Number(formData.get('credits'));
               const expirationDate = formData.get('expirationDate') as string;
+              const memo = formData.get('memo') as string;
 
               // Validation
               if (credits <= 0) {
@@ -818,7 +938,7 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) => {
                   return;
               }
 
-              handleAddFreeCredits(credits, expirationDate);
+              handleAddFreeCredits(credits, expirationDate, memo);
           }}>
               <p className="text-sm text-gray-600">Add complimentary credits to the client's account. These credits will be tracked separately and can have an expiration date.</p>
 
@@ -853,6 +973,20 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) => {
                     />
                 </div>
                 <p className="mt-1 text-xs text-gray-500">Credits will expire on this date</p>
+              </div>
+
+              <div>
+                <label htmlFor="memo" className="block text-sm font-medium text-gray-700">
+                  Memo / Reason <span className="text-gray-400 font-normal">(Optional)</span>
+                </label>
+                <textarea
+                    name="memo"
+                    id="memo"
+                    rows={3}
+                    placeholder="e.g., Compensation for service outage, promotional credits, etc."
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-primary focus:ring-brand-primary sm:text-sm"
+                />
+                <p className="mt-1 text-xs text-gray-500">Optional note explaining why these credits were added</p>
               </div>
 
               <div className="flex justify-end gap-3 pt-4">

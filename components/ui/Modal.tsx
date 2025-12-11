@@ -11,7 +11,7 @@ interface ModalProps {
   onClose: () => void;
   title: string;
   children: React.ReactNode;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
 }
 
 const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, size = 'lg' }) => {
@@ -30,6 +30,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, size = 
     md: 'max-w-lg',
     lg: 'max-w-2xl',
     xl: 'max-w-4xl',
+    full: 'max-w-7xl',
   };
 
   return (
@@ -74,7 +75,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, size = 
             </div>
 
             {/* Body */}
-            <div className="p-6">
+            <div className={`${size === 'full' ? 'p-0 max-h-[80vh] overflow-y-auto' : 'p-6 max-h-[70vh] overflow-y-auto'}`}>
               {children}
             </div>
           </motion.div>

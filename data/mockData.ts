@@ -9,98 +9,102 @@ export const subscriptionPlans: SubscriptionPlan[] = [
   {
     id: 'starter',
     name: 'Starter',
-    monthlyPrice: 79,
-    annualPrice: 790, // Save $158
+    monthlyPrice: 0, // Base subscription (no base fee for Starter)
+    pricePerRecordPerMonth: 0.00, // Free tier - no per-record charge
     description: 'Perfect for small organizations getting started with calling and basic features.',
-    baselineCredits: 7500,
+    monthlyCreditsIncluded: 5000,
     maxUsers: 5,
     overageCreditRate: 0.020,
-    creditExpirationDays: 60,
     status: 'active',
     tierLevel: 1,
     isMostPopular: false,
     clientsUsing: 245,
-    lastUpdated: '2025-11-15T10:00:00Z',
+    lastUpdated: '2025-12-03T10:00:00Z',
     highlights: [
-      '7,500 credits per month',
+      '5,000 credits per month',
       'Up to 5 users',
       'Basic calling features',
       'Email support',
-      '60-day credit rollover'
+      'Credits refresh monthly'
     ],
+    assignedClientTypes: [],
+    assignedClientIds: [],
   },
   {
     id: 'professional',
     name: 'Professional',
-    monthlyPrice: 149,
-    annualPrice: 1490, // Save $298
+    monthlyPrice: 0, // Base subscription (pricing is per-record based)
+    pricePerRecordPerMonth: 0.005, // $0.005 per record per month
     description: 'Ideal for growing organizations that need more credits and advanced features.',
-    baselineCredits: 20000,
+    monthlyCreditsIncluded: 15000,
     maxUsers: 20,
-    overageCreditRate: 0.015,
-    creditExpirationDays: 90,
+    overageCreditRate: 0.020,
     status: 'active',
     tierLevel: 2,
     isMostPopular: true,
     clientsUsing: 612,
-    lastUpdated: '2025-11-20T14:30:00Z',
+    lastUpdated: '2025-12-03T14:30:00Z',
     highlights: [
-      '20,000 credits per month',
+      '15,000 credits per month',
       'Up to 20 users',
       'Advanced calling features',
       'Priority email support',
-      '90-day credit rollover',
+      'Credits refresh monthly',
       'Custom integrations'
     ],
+    assignedClientTypes: ['Fed Congressional', 'Fed PAC'],
+    assignedClientIds: [],
   },
   {
     id: 'enterprise',
     name: 'Enterprise',
-    monthlyPrice: 499,
-    annualPrice: 4990, // Save $998
+    monthlyPrice: 0, // Base subscription (pricing is per-record based)
+    pricePerRecordPerMonth: 0.0075, // $0.0075 per record per month
     description: 'For large organizations requiring unlimited access and premium support.',
-    baselineCredits: 100000,
+    monthlyCreditsIncluded: 50000,
     maxUsers: 'Unlimited',
-    overageCreditRate: 0.010,
-    creditExpirationDays: 120,
+    overageCreditRate: 0.020,
     status: 'active',
     tierLevel: 3,
     isMostPopular: false,
     clientsUsing: 85,
-    lastUpdated: '2025-11-18T09:15:00Z',
+    lastUpdated: '2025-12-03T09:15:00Z',
     highlights: [
-      '100,000 credits per month',
+      '50,000 credits per month',
       'Unlimited users',
       'All advanced features',
       '24/7 priority support',
-      '120-day credit rollover',
+      'Credits refresh monthly',
       'Dedicated account manager',
       'Custom SLA agreements'
     ],
+    assignedClientTypes: ['Fed Senate', 'Statewide'],
+    assignedClientIds: [],
   },
   {
     id: 'legacy-standard',
     name: 'Legacy Standard',
     monthlyPrice: 79,
-    annualPrice: 790,
+    pricePerRecordPerMonth: 0,
     description: 'Legacy plan for existing customers.',
-    baselineCredits: 7500,
+    monthlyCreditsIncluded: 7500,
     maxUsers: 10,
     overageCreditRate: 0.020,
-    creditExpirationDays: 60,
     status: 'archived',
     tierLevel: 1,
     isMostPopular: false,
     clientsUsing: 12,
     lastUpdated: '2024-06-10T08:00:00Z',
+    assignedClientTypes: [],
+    assignedClientIds: [],
   },
   {
     id: 'internal-test',
     name: 'Internal Test',
     monthlyPrice: 0,
-    annualPrice: 0,
+    pricePerRecordPerMonth: 0,
     description: 'Internal testing plan for CMDI staff.',
-    baselineCredits: 999999,
+    monthlyCreditsIncluded: 999999,
     maxUsers: 'Unlimited',
     overageCreditRate: 0,
     status: 'internal',
@@ -108,22 +112,25 @@ export const subscriptionPlans: SubscriptionPlan[] = [
     isMostPopular: false,
     clientsUsing: 5,
     lastUpdated: '2025-11-01T12:00:00Z',
+    assignedClientTypes: [],
+    assignedClientIds: [],
   },
   {
     id: 'beta-growth',
     name: 'Beta Growth',
     monthlyPrice: 99,
-    annualPrice: 0,
+    pricePerRecordPerMonth: 0,
     description: 'Beta plan for testing new features with select customers.',
-    baselineCredits: 15000,
+    monthlyCreditsIncluded: 15000,
     maxUsers: 10,
     overageCreditRate: 0.018,
-    creditExpirationDays: 60,
     status: 'beta',
     tierLevel: 2,
     isMostPopular: false,
     clientsUsing: 38,
     lastUpdated: '2025-11-22T16:45:00Z',
+    assignedClientTypes: [],
+    assignedClientIds: [],
   },
 ];
 
@@ -332,7 +339,7 @@ export const clients: Client[] = [
     id: 'cli1',
     clientName: 'Washington for Congress',
     dbName: 'dxWashington',
-    clientType: 'Federal Campaign',
+    clientType: 'Fed Senate',
     subscriptionTier: 'Enterprise',
     status: 'Active',
     createdDate: '2022-01-15',
@@ -342,6 +349,10 @@ export const clients: Client[] = [
         rollover: 12000,
         addOn: 250000,
     },
+    currentCreditCount: 125500, // Current usage from Crimson API
+    creditCountLastUpdated: '2025-12-03T08:30:00Z',
+    recordCount: 45000, // Number of records in Crimson People database
+    recordCountLastUpdated: '2025-12-03T08:30:00Z',
     currentMonthUsage: {
       totalCreditsUsed: 125500,
       totalBill: 12749.00,
@@ -375,7 +386,7 @@ export const clients: Client[] = [
     id: 'cli2',
     clientName: 'Joe for Senate',
     dbName: 'dxJoeSenate',
-    clientType: 'Federal Campaign',
+    clientType: 'Fed Senate',
     subscriptionTier: 'Enterprise',
     status: 'Active',
     createdDate: '2021-11-20',
@@ -385,6 +396,10 @@ export const clients: Client[] = [
         rollover: 0,
         addOn: 0,
     },
+    currentCreditCount: 45000,
+    creditCountLastUpdated: '2025-12-03T08:30:00Z',
+    recordCount: 32000,
+    recordCountLastUpdated: '2025-12-03T08:30:00Z',
     currentMonthUsage: {
       totalCreditsUsed: 45000,
       totalBill: 599,
@@ -528,3 +543,67 @@ export const clients: Client[] = [
     ]
   },
 ];
+
+// Client Types for assignment dropdowns
+export const clientTypes = [
+  'Fed Senate',
+  'Fed Congressional',
+  'Fed PAC',
+  'Statewide',
+  'State Legislative',
+  'Local',
+  'Non-Profit',
+  'Other'
+];
+
+// Terms and Conditions
+import { TermsAndConditions } from '../types';
+
+export const termsAndConditions: TermsAndConditions = {
+  id: 'tc-1',
+  content: `# CMDI Credit Pricing - Terms and Conditions
+
+## 1. Service Agreement
+By using CMDI Credit Pricing services, you agree to these terms and conditions. These terms govern your use of our credit-based calling and data services.
+
+## 2. Pricing and Billing
+- Subscription pricing is based on the number of records in your Crimson People database
+- Monthly credits are included with your subscription tier
+- Credits refresh monthly and do not roll over to the next billing period
+- Overage charges apply when monthly credits are exceeded at the rate specified in your subscription tier
+
+## 3. Credit Usage
+- Credits are consumed when using features such as data enhancement, email verification, and calling services
+- Credit costs vary by feature and are displayed in the admin interface
+- Monthly credit allocations refresh on your billing period start date
+- Unused credits expire at the end of each billing period
+
+## 4. Payment Terms
+- Subscription fees are billed monthly in advance
+- Overage charges are billed monthly in arrears
+- Payment is due within 30 days of invoice date
+- Late payments may result in service suspension
+
+## 5. Service Level
+- We strive to maintain 99.9% uptime for all services
+- Support response times vary by subscription tier
+- Enterprise customers receive priority support
+
+## 6. Data Privacy
+- Your data is stored securely and never shared with third parties
+- We comply with all applicable data protection regulations
+- You retain ownership of all your data
+
+## 7. Termination
+- Either party may terminate this agreement with 30 days written notice
+- Upon termination, you will be billed for any outstanding usage
+- Your data will be available for export for 30 days after termination
+
+## 8. Changes to Terms
+- We reserve the right to modify these terms with 30 days notice
+- Continued use of services after changes constitutes acceptance
+
+Last Updated: December 3, 2025`,
+  lastUpdated: '2025-12-03T10:00:00Z',
+  lastUpdatedBy: 'Admin User'
+};

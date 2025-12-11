@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { View } from '../../types';
-import { DashboardIcon, SubscriptionIcon, FeaturesIcon, ClientsIcon, ReportsIcon } from '../ui/Icons';
+import { DashboardIcon, SubscriptionIcon, FeaturesIcon, ClientsIcon, ReportsIcon, SettingsIcon } from '../ui/Icons';
 
 interface SidebarProps {
   currentView: View;
@@ -58,6 +58,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => {
     { view: 'features', label: 'Features', icon: FeaturesIcon },
     { view: 'clients', label: 'Clients', icon: ClientsIcon },
     { view: 'reports', label: 'Reports', icon: ReportsIcon },
+    { view: 'settings', label: 'Settings', icon: SettingsIcon },
   ] as const;
 
   return (

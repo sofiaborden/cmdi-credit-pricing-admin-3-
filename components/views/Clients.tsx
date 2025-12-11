@@ -1,14 +1,14 @@
 
 import React, { useMemo, useState } from 'react';
-import { clients, subscriptionPlans } from '../../data/mockData';
+import { clients as mockClients, subscriptionPlans } from '../../data/mockData';
 import { Client, ClientStatus } from '../../types';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Dropdown from '../ui/Dropdown';
-import { formatNumber, formatCurrency } from '../../utils/formatters';
-import { ChevronUp, ChevronDown } from 'lucide-react';
+import { formatNumber, formatCurrency, formatDate } from '../../utils/formatters';
+import { ChevronUp, ChevronDown, RefreshCw } from 'lucide-react';
 
-type SortField = 'clientName' | 'status' | 'plan' | 'creditsUsed' | 'creditsRemaining' | 'currentBill' | 'lastBill';
+type SortField = 'clientName' | 'status' | 'plan' | 'creditsAllocated' | 'unusedMonthly' | 'unusedRollover' | 'unusedPacks' | 'currentUsage' | 'currentBill';
 type SortDirection = 'asc' | 'desc' | null;
 
 interface ClientsProps {
@@ -31,12 +31,15 @@ const StatusBadge = ({ status }: { status: ClientStatus }) => {
 
 
 const Clients: React.FC<ClientsProps> = ({ onViewClient }) => {
+  const [clients, setClients] = useState<Client[]>(mockClients);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPlan, setSelectedPlan] = useState('All');
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [selectedClientType, setSelectedClientType] = useState('All');
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
+  const [refreshingAll, setRefreshingAll] = useState(false);
+  const [refreshingClients, setRefreshingClients] = useState<Set<string>>(new Set());
 
   const planOptions = useMemo(() => [
     { value: 'All', label: 'All Plans' },
@@ -56,6 +59,60 @@ const Clients: React.FC<ClientsProps> = ({ onViewClient }) => {
     ...[...new Set(clients.map(c => c.clientType))].map(type => ({ value: type, label: type }))
   ], []);
 
+
+  // Simulate refreshing client data from Crimson API
+  const refreshClientData = async (clientId: string) => {
+    setRefreshingClients(prev => new Set(prev).add(clientId));
+
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // Update client with simulated fresh data
+    setClients(prevClients => prevClients.map(client => {
+      if (client.id === clientId) {
+        // Simulate getting fresh data from Crimson API
+        const randomUsage = Math.floor(Math.random() * 50000) + 10000;
+        const randomRecordCount = Math.floor(Math.random() * 100000) + 5000;
+        return {
+          ...client,
+          currentCreditCount: randomUsage,
+          creditCountLastUpdated: new Date().toISOString(),
+          recordCount: randomRecordCount,
+          recordCountLastUpdated: new Date().toISOString(),
+        };
+      }
+      return client;
+    }));
+
+    setRefreshingClients(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(clientId);
+      return newSet;
+    });
+  };
+
+  // Refresh all clients
+  const refreshAllClients = async () => {
+    setRefreshingAll(true);
+
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // Update all clients with simulated fresh data
+    setClients(prevClients => prevClients.map(client => {
+      const randomUsage = Math.floor(Math.random() * 50000) + 10000;
+      const randomRecordCount = Math.floor(Math.random() * 100000) + 5000;
+      return {
+        ...client,
+        currentCreditCount: randomUsage,
+        creditCountLastUpdated: new Date().toISOString(),
+        recordCount: randomRecordCount,
+        recordCountLastUpdated: new Date().toISOString(),
+      };
+    }));
+
+    setRefreshingAll(false);
+  };
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -103,18 +160,31 @@ const Clients: React.FC<ClientsProps> = ({ onViewClient }) => {
             aValue = a.subscriptionTier;
             bValue = b.subscriptionTier;
             break;
-          case 'creditsUsed':
-            aValue = a.currentMonthUsage.totalCreditsUsed;
-            bValue = b.currentMonthUsage.totalCreditsUsed;
-            break;
-          case 'creditsRemaining':
-            // CRITICAL FIX: Calculate total available credits (monthly + rollover + add-on)
+          case 'creditsAllocated':
+            // Calculate total available credits (monthly + rollover + add-on)
             aValue = a.creditBalance.monthly + a.creditBalance.rollover + a.creditBalance.addOn;
             bValue = b.creditBalance.monthly + b.creditBalance.rollover + b.creditBalance.addOn;
             break;
+          case 'unusedMonthly':
+            aValue = a.creditBalance.monthly;
+            bValue = b.creditBalance.monthly;
+            break;
+          case 'unusedRollover':
+            aValue = a.creditBalance.rollover;
+            bValue = b.creditBalance.rollover;
+            break;
+          case 'unusedPacks':
+            aValue = a.creditBalance.addOn;
+            bValue = b.creditBalance.addOn;
+            break;
+          case 'currentUsage':
+            // Sort by current credit count from Crimson API
+            aValue = a.currentCreditCount || 0;
+            bValue = b.currentCreditCount || 0;
+            break;
           case 'currentBill':
             aValue = a.currentMonthUsage.totalBill;
-            bValue = b.lastMonthUsage.totalBill;
+            bValue = b.currentMonthUsage.totalBill;
             break;
           default:
             return 0;
@@ -178,7 +248,7 @@ const Clients: React.FC<ClientsProps> = ({ onViewClient }) => {
 
         <Card padding="p-0">
           <div className="p-4 border-b border-gray-200/80">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-center">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-center mb-4">
                 <div className="sm:col-span-2 lg:col-span-1">
                      <input
                         type="text"
@@ -192,6 +262,20 @@ const Clients: React.FC<ClientsProps> = ({ onViewClient }) => {
                 <Dropdown options={statusOptions} value={selectedStatus} onChange={setSelectedStatus} placeholder="All Statuses" />
                 <Dropdown options={clientTypeOptions} value={selectedClientType} onChange={setSelectedClientType} placeholder="All Client Types" />
             </div>
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-gray-600">
+                <span className="font-semibold">{filteredAndSortedClients.length}</span> clients shown
+              </div>
+              <Button
+                onClick={refreshAllClients}
+                size="sm"
+                variant="secondary"
+                disabled={refreshingAll}
+              >
+                <RefreshCw className={refreshingAll ? 'animate-spin' : ''} size={16} />
+                {refreshingAll ? 'Refreshing All...' : 'Refresh All Clients'}
+              </Button>
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
@@ -200,26 +284,33 @@ const Clients: React.FC<ClientsProps> = ({ onViewClient }) => {
                   <SortableHeader field="clientName">Client Name</SortableHeader>
                   <SortableHeader field="status">Status</SortableHeader>
                   <SortableHeader field="plan">Plan</SortableHeader>
-                  <SortableHeader field="creditsUsed">Credits Used</SortableHeader>
-                  <SortableHeader field="creditsRemaining">Credits Remaining</SortableHeader>
+                  <SortableHeader field="creditsAllocated">Credits Allocated</SortableHeader>
+                  <SortableHeader field="unusedMonthly">Unused Monthly</SortableHeader>
+                  <SortableHeader field="unusedRollover">Unused Rollover</SortableHeader>
+                  <SortableHeader field="unusedPacks">Unused Packs</SortableHeader>
+                  <SortableHeader field="currentUsage">Current Usage</SortableHeader>
                   <SortableHeader field="currentBill">Current Bill</SortableHeader>
                   <th scope="col" className="relative px-6 py-4">
-                    <span className="sr-only">View</span>
+                    <span className="sr-only">Actions</span>
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-100">
                 {filteredAndSortedClients.map((client) => {
                   const plan = subscriptionPlans.find(p => p.name === client.subscriptionTier);
-                  // CRITICAL FIX: Calculate total available credits (monthly + rollover + add-on)
-                  const creditsRemaining = client.creditBalance.monthly +
+                  // Calculate total allocated credits (monthly + rollover + add-on)
+                  const creditsAllocated = client.creditBalance.monthly +
                                           client.creditBalance.rollover +
                                           client.creditBalance.addOn;
 
                   // Color coding based on liability thresholds
-                  const colorClass = creditsRemaining > 100000 ? 'text-red-600 font-bold' :
-                                    creditsRemaining > 50000 ? 'text-orange-600 font-semibold' :
+                  const allocatedColorClass = creditsAllocated > 100000 ? 'text-red-600 font-bold' :
+                                    creditsAllocated > 50000 ? 'text-orange-600 font-semibold' :
                                     'text-gray-700 font-medium';
+
+                  const isRefreshing = refreshingClients.has(client.id);
+                  const hasCurrentUsage = client.currentCreditCount !== undefined;
+                  const lastUpdated = client.creditCountLastUpdated;
 
                   return (
                     <tr key={client.id} className="hover:bg-gray-50 transition-colors">
@@ -235,11 +326,37 @@ const Clients: React.FC<ClientsProps> = ({ onViewClient }) => {
                           {client.subscriptionTier}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-medium">{formatNumber(client.currentMonthUsage.totalCreditsUsed)}</td>
-                      <td className={`px-6 py-4 whitespace-nowrap text-sm ${colorClass}`}>{formatNumber(creditsRemaining)}</td>
+                      <td className={`px-6 py-4 whitespace-nowrap text-sm ${allocatedColorClass}`}>{formatNumber(creditsAllocated)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-700 font-medium">{formatNumber(client.creditBalance.monthly)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-purple-700 font-medium">{formatNumber(client.creditBalance.rollover)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-green-700 font-medium">{formatNumber(client.creditBalance.addOn)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {hasCurrentUsage ? (
+                          <div>
+                            <div className="text-sm text-gray-900 font-medium">{formatNumber(client.currentCreditCount!)}</div>
+                            {lastUpdated && (
+                              <div className="text-xs text-gray-500">
+                                {formatDate(lastUpdated)}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="text-sm text-gray-400 italic">Not synced</div>
+                        )}
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-bold">{formatCurrency(client.currentMonthUsage.totalBill)}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <Button variant="primary" size="sm" onClick={() => onViewClient(client)}>View Details</Button>
+                        <div className="flex items-center gap-2 justify-end">
+                          <button
+                            onClick={() => refreshClientData(client.id)}
+                            disabled={isRefreshing}
+                            className="p-1.5 text-gray-400 hover:text-brand-600 transition-colors disabled:opacity-50"
+                            title="Refresh client data from Crimson API"
+                          >
+                            <RefreshCw className={isRefreshing ? 'animate-spin' : ''} size={16} />
+                          </button>
+                          <Button variant="primary" size="sm" onClick={() => onViewClient(client)}>View</Button>
+                        </div>
                       </td>
                     </tr>
                   );
